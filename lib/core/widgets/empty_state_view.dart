@@ -11,6 +11,8 @@ class EmptyStateView extends StatelessWidget {
     required this.message,
     this.actionLabel,
     this.onAction,
+    this.secondaryActionLabel,
+    this.onSecondaryAction,
     super.key,
   });
 
@@ -19,6 +21,8 @@ class EmptyStateView extends StatelessWidget {
   final String message;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final String? secondaryActionLabel;
+  final VoidCallback? onSecondaryAction;
 
   @override
   Widget build(BuildContext context) {
@@ -43,8 +47,16 @@ class EmptyStateView extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Text(message, style: text.bodyMedium, textAlign: TextAlign.center),
             if (actionLabel != null && onAction != null) ...<Widget>[
-              const SizedBox(height: AppSpacing.md),
-              OutlinedButton(onPressed: onAction, child: Text(actionLabel!)),
+              const SizedBox(height: AppSpacing.lg),
+              FilledButton(onPressed: onAction, child: Text(actionLabel!)),
+            ],
+            if (secondaryActionLabel != null &&
+                onSecondaryAction != null) ...<Widget>[
+              const SizedBox(height: AppSpacing.sm),
+              TextButton(
+                onPressed: onSecondaryAction,
+                child: Text(secondaryActionLabel!),
+              ),
             ],
           ],
         ),

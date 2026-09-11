@@ -4,6 +4,7 @@ import '../../../app/app_scope.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/empty_state_view.dart';
+import '../../../core/widgets/responsive_body.dart';
 import '../../../core/widgets/rounded_surface.dart';
 import '../../../core/widgets/selectable_chip.dart';
 import '../../products/domain/product.dart';
@@ -100,55 +101,58 @@ class _ResultScreenState extends State<ResultScreen> {
             ],
           ),
           body: SafeArea(
-            child: ListView(
-              padding: const EdgeInsets.only(bottom: AppSpacing.bottomAction),
-              children: <Widget>[
-                _ResultHeader(
-                  intent: intent,
-                  directions: directions,
-                  title: widget.title,
-                  count: picks.length,
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.screen,
+            child: ResponsiveBody(
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: AppSpacing.bottomAction),
+                children: <Widget>[
+                  _ResultHeader(
+                    intent: intent,
+                    directions: directions,
+                    title: widget.title,
+                    count: picks.length,
                   ),
-                  child: ProductGrid(
-                    products: shown
-                        .map((ProductPick p) => p.product)
-                        .toList(growable: false),
-                    badgeOf: (Product product) => shown
-                        .firstWhere(
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.screen,
+                    ),
+                    child: ProductGrid(
+                      products: shown
+                          .map((ProductPick p) => p.product)
+                          .toList(growable: false),
+                      badgeOf: (Product product) => shown
+                          .firstWhere(
+                            (ProductPick p) => p.product.id == product.id,
+                          )
+                          .badge,
+                      onOpen: (Product product) => _openProduct(
+                        shown.firstWhere(
                           (ProductPick p) => p.product.id == product.id,
-                        )
-                        .badge,
-                    onOpen: (Product product) => _openProduct(
-                      shown.firstWhere(
-                        (ProductPick p) => p.product.id == product.id,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                if (_visible < picks.length) ...<Widget>[
+                  if (_visible < picks.length) ...<Widget>[
+                    const SizedBox(height: AppSpacing.lg),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.screen,
+                      ),
+                      child: OutlinedButton(
+                        onPressed: () =>
+                            setState(() => _visible = picks.length),
+                        child: Text('추천 상품 더 보기 (${picks.length - _visible})'),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: AppSpacing.lg),
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.screen,
                     ),
-                    child: OutlinedButton(
-                      onPressed: () => setState(() => _visible = picks.length),
-                      child: Text('추천 상품 더 보기 (${picks.length - _visible})'),
-                    ),
+                    child: NoticeBlock(text: deps.productDisclaimer),
                   ),
                 ],
-                const SizedBox(height: AppSpacing.lg),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.screen,
-                  ),
-                  child: NoticeBlock(text: deps.productDisclaimer),
-                ),
-              ],
+              ),
             ),
           ),
         );
@@ -213,7 +217,7 @@ class _ResultHeader extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           RoundedSurface(
-            color: AppColors.surfaceMuted,
+            color: AppColors.primaryContainer,
             bordered: false,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

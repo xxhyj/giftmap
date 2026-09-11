@@ -5,6 +5,7 @@ import '../../../app/app_scope.dart';
 import '../../../app/app_shell.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/responsive_body.dart';
 import '../../../core/widgets/rounded_surface.dart';
 import '../../gift_finder/domain/gift_intent.dart';
 import '../../products/domain/product.dart';
@@ -14,36 +15,22 @@ import '../../search/presentation/search_screen.dart';
 import '../widgets/home_hero.dart';
 import '../widgets/occasion_quick_row.dart';
 
-/// S1. 홈. 선물을 "발견하는" 공간이다.
+/// 홈. 선물을 발견하는 공간이다.
 ///
-/// 상품 이미지 중심의 큐레이션 섹션과 선물 찾기 진입점을 함께 보여준다.
-class HomeScreen extends StatefulWidget {
+/// 최근 본 상품은 홈이 아니라 기록 탭에서만 보여준다.
+/// 모든 섹션은 카탈로그가 돌려준 목록 길이에 따라 자동으로 나타나고 사라진다.
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  bool _refreshed = false;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_refreshed) return;
-    _refreshed = true;
-    AppScope.of(context).historyStore.refresh();
-  }
-
-  void _openSearch({String? query}) {
+  void _openSearch(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (BuildContext context) => SearchScreen(initialQuery: query),
+        builder: (BuildContext context) => const SearchScreen(),
       ),
     );
   }
 
-  void _openProduct(Product product) {
+  void _openProduct(BuildContext context, Product product) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (BuildContext context) =>
@@ -52,7 +39,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _startFinder({
+  void _startFinder(
+    BuildContext context, {
     GiftSituation? situation,
     RelationshipType? relationship,
   }) {
@@ -72,135 +60,97 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final AppDependencies deps = AppScope.of(context);
-    final TextTheme text = Theme.of(context).textTheme;
 
-    final List<Product> popular = deps.catalog.popular;
-    final List<Product> under30k = deps.catalog.byPriceUnder(30000);
-    final List<Product> forFriend = deps.catalog.byRecipient(
-      RelationshipType.friend,
-    );
-    final List<Product> housewarming = deps.catalog.byOccasion(
-      GiftSituation.housewarming,
-    );
-    final List<Product> curated = deps.catalog.discounted
-        .take(6)
-        .toList(growable: false);
+    void open(Product product) => _openProduct(context, product);
 
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.only(bottom: AppSpacing.bottomAction),
-          children: <Widget>[
-            _TopBar(
-              onSearch: _openSearch,
-              onLibrary: () =>
-                  deps.shellTab.goTo(ShellTabController.libraryTab),
-              onSettings: () =>
-                  Navigator.of(context).push(AppRouter.settings()),
-            ),
-            HomeHero(
-              onSearchTap: _openSearch,
-              onStartTap: () => _startFinder(),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            OccasionQuickRow(
-              onSituation: (GiftSituation s) => _startFinder(situation: s),
-              onRelationship: (RelationshipType r) =>
-                  _startFinder(relationship: r),
-            ),
-            if (popular.isNotEmpty) ...<Widget>[
-              SectionTitleRow(
-                title: '지금 많이 찾는 선물',
+        child: ResponsiveBody(
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: AppSpacing.bottomAction),
+            children: <Widget>[
+              _HomeHeader(
+                onLibrary: () =>
+                    deps.shellTab.goTo(ShellTabController.favoritesTab),
+                onSettings: () =>
+                    Navigator.of(context).push(AppRouter.settings()),
+              ),
+              HomeSearchEntry(onTap: () => _openSearch(context)),
+              GiftFinderHeroBanner(onStart: () => _startFinder(context)),
+              const SizedBox(height: AppSpacing.lg),
+              OccasionQuickRow(
+                onSituation: (GiftSituation s) =>
+                    _startFinder(context, situation: s),
+                onRelationship: (RelationshipType r) =>
+                    _startFinder(context, relationship: r),
+              ),
+              ProductCarouselSection(
+                title: '요즘 눈여겨볼 선물',
+                subtitle: '지금 할인 중인 데모 상품',
+                products: deps.catalog.discounted,
+                onOpen: open,
+              ),
+              ProductCarouselSection(
+                title: 'Giftmap 추천 상품',
                 subtitle: '상황을 가리지 않고 무난한 선택',
-                actionLabel: '더 보기',
-                onAction: _openSearch,
+                products: deps.catalog.popular,
+                onOpen: open,
               ),
-              ProductCarousel(products: popular, onOpen: _openProduct),
-            ],
-            if (under30k.isNotEmpty) ...<Widget>[
-              const SectionTitleRow(
-                title: '3만원 이하',
-                subtitle: '부담 없이 건네기 좋은 가격대',
+              ProductCarouselSection(
+                title: '인기 상품',
+                subtitle: '데모 데이터 기준으로 고른 대표 상품',
+                products: deps.catalog.byPriceUnder(50000, limit: 12),
+                onOpen: open,
               ),
-              ProductCarousel(products: under30k, onOpen: _openProduct),
-            ],
-            if (forFriend.isNotEmpty) ...<Widget>[
-              const SectionTitleRow(
+              ProductCarouselSection(
                 title: '친구에게 주기 좋은 선물',
                 subtitle: '취향 부담이 적은 구성 위주',
+                products: deps.catalog.byRecipient(RelationshipType.friend),
+                onOpen: open,
               ),
-              ProductCarousel(products: forFriend, onOpen: _openProduct),
-            ],
-            if (housewarming.isNotEmpty) ...<Widget>[
-              const SectionTitleRow(
-                title: '센스 있는 집들이 선물',
+              ProductCarouselSection(
+                title: '집들이에 센스 있는 선물',
                 subtitle: '공간에 두고 오래 쓰는 것들',
+                products: deps.catalog.byOccasion(GiftSituation.housewarming),
+                onOpen: open,
               ),
-              ProductCarousel(products: housewarming, onOpen: _openProduct),
-            ],
-            if (curated.isNotEmpty) ...<Widget>[
-              const SectionTitleRow(
-                title: 'GiftMap 추천 상품',
-                subtitle: '지금 할인 중인 데모 상품',
+              ProductCarouselSection(
+                title: '부담 없이 마음을 전하기 좋은 선물',
+                subtitle: '가볍게 건네기 좋은 가격대',
+                products: deps.catalog.byPriceUnder(30000, limit: 12),
+                onOpen: open,
               ),
+              const SizedBox(height: AppSpacing.lg),
+              _BrowseAllCard(
+                onTap: () => deps.shellTab.goTo(ShellTabController.categoryTab),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _AnniversaryCard(
+                onTap: () =>
+                    Navigator.of(context).push(AppRouter.anniversary()),
+              ),
+              const SizedBox(height: AppSpacing.md),
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.screen,
                 ),
-                child: ProductGrid(products: curated, onOpen: _openProduct),
-              ),
-            ],
-            _RecentlyViewedSection(onOpen: _openProduct),
-            const SizedBox(height: AppSpacing.lg),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.screen,
-              ),
-              child: RoundedSurface(
-                onTap: () =>
-                    Navigator.of(context).push(AppRouter.anniversary()),
-                child: Row(
-                  children: <Widget>[
-                    const Icon(Icons.event_outlined, color: AppColors.inkMuted),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text('기념일 미리 챙기기', style: text.titleMedium),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text('기기에만 저장되는 간단한 목록이에요', style: text.labelSmall),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.chevron_right, color: AppColors.inkMuted),
-                  ],
+                child: Text(
+                  deps.productDisclaimer,
+                  style: Theme.of(context).textTheme.labelSmall,
                 ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.screen,
-              ),
-              child: NoticeBlock(text: deps.productDisclaimer),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _TopBar extends StatelessWidget {
-  const _TopBar({
-    required this.onSearch,
-    required this.onLibrary,
-    required this.onSettings,
-  });
+class _HomeHeader extends StatelessWidget {
+  const _HomeHeader({required this.onLibrary, required this.onSettings});
 
-  final VoidCallback onSearch;
   final VoidCallback onLibrary;
   final VoidCallback onSettings;
 
@@ -213,33 +163,28 @@ class _TopBar extends StatelessWidget {
         AppSpacing.screen,
         AppSpacing.sm,
         AppSpacing.sm,
-        0,
+        AppSpacing.md,
       ),
       child: Row(
         children: <Widget>[
           Expanded(
             child: Text(
-              'GiftMap',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: AppColors.brandCoralDark,
-                letterSpacing: -0.4,
-              ),
+              'Giftmap',
+              style: Theme.of(context).textTheme.titleLarge
+                  ?.copyWith(color: AppColors.primary, letterSpacing: -0.4),
             ),
-          ),
-          IconButton(
-            onPressed: onSearch,
-            icon: const Icon(Icons.search),
-            tooltip: '상품 검색',
           ),
           ListenableBuilder(
             listenable: deps.favorites,
             builder: (BuildContext context, _) {
+              final int count = deps.favorites.count;
               return IconButton(
                 onPressed: onLibrary,
-                tooltip: '보관함',
+                tooltip: count == 0 ? '찜' : '찜 $count개',
                 icon: Badge(
-                  isLabelVisible: deps.favorites.count > 0,
-                  label: Text('${deps.favorites.count}'),
+                  isLabelVisible: count > 0,
+                  backgroundColor: AppColors.accent,
+                  label: Text('$count'),
                   child: const Icon(Icons.favorite_border),
                 ),
               );
@@ -256,35 +201,80 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-class _RecentlyViewedSection extends StatelessWidget {
-  const _RecentlyViewedSection({required this.onOpen});
+class _BrowseAllCard extends StatelessWidget {
+  const _BrowseAllCard({required this.onTap});
 
-  final void Function(Product product) onOpen;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final AppDependencies deps = AppScope.of(context);
+    final TextTheme text = Theme.of(context).textTheme;
 
-    return ListenableBuilder(
-      listenable: deps.recentlyViewed,
-      builder: (BuildContext context, _) {
-        final List<Product> products = deps.catalog
-            .byIds(deps.recentlyViewed.ids)
-            .take(10)
-            .toList(growable: false);
-        if (products.isEmpty) return const SizedBox.shrink();
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
+      child: RoundedSurface(
+        onTap: onTap,
+        child: Row(
           children: <Widget>[
-            SectionTitleRow(
-              title: '최근 본 상품',
-              actionLabel: '전체 보기',
-              onAction: () => deps.shellTab.goTo(ShellTabController.libraryTab),
+            const Icon(
+              Icons.grid_view_rounded,
+              color: AppColors.primary,
+              size: 22,
             ),
-            ProductCarousel(products: products, onOpen: onOpen),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text('전체 카테고리 둘러보기', style: text.titleMedium),
+                  const SizedBox(height: 2),
+                  Text('종류별로 천천히 비교해 보세요', style: text.labelSmall),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.textTertiary),
           ],
-        );
-      },
+        ),
+      ),
+    );
+  }
+}
+
+class _AnniversaryCard extends StatelessWidget {
+  const _AnniversaryCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextTheme text = Theme.of(context).textTheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
+      child: RoundedSurface(
+        onTap: onTap,
+        child: Row(
+          children: <Widget>[
+            const Icon(
+              Icons.event_outlined,
+              color: AppColors.textSecondary,
+              size: 22,
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text('기념일 미리 챙기기', style: text.titleMedium),
+                  const SizedBox(height: 2),
+                  Text('기기에만 저장되는 간단한 목록이에요', style: text.labelSmall),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.textTertiary),
+          ],
+        ),
+      ),
     );
   }
 }

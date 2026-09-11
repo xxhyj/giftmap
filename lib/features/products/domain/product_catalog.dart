@@ -76,10 +76,10 @@ class ProductCatalog {
     return _sorted(matched, sort);
   }
 
-  /// 가격 구간으로 거른 목록. 홈의 가격대별 큐레이션에 쓴다.
+  /// 가격 구간으로 거른 목록. 가격을 모르는 상품은 제외한다.
   List<Product> byPriceUnder(int maxPrice, {int limit = 10}) {
     final List<Product> matched = products
-        .where((Product p) => p.price <= maxPrice)
+        .where((Product p) => p.price != null && p.price! <= maxPrice)
         .toList();
     return _sorted(matched, ProductSort.recommended).take(limit).toList();
   }
@@ -120,8 +120,9 @@ class ProductCatalog {
     copy.sort((Product a, Product b) {
       final int primary = switch (sort) {
         ProductSort.recommended => _coverage(b).compareTo(_coverage(a)),
-        ProductSort.priceLow => a.price.compareTo(b.price),
-        ProductSort.priceHigh => b.price.compareTo(a.price),
+        // 가격을 모르는 상품은 정렬에서 뒤로 보낸다.
+        ProductSort.priceLow => a.sortPrice.compareTo(b.sortPrice),
+        ProductSort.priceHigh => b.sortPrice.compareTo(a.sortPrice),
         ProductSort.discount => (b.discountRate ?? 0).compareTo(
           a.discountRate ?? 0,
         ),
@@ -136,9 +137,11 @@ class ProductCatalog {
       p.occasions.length * 2 + p.recipientTypes.length;
 
   static bool _inBand(Product product, BudgetBand band) {
+    final int? price = product.price;
+    if (price == null) return false;
     final int min = band.min ?? 0;
     final int max = band.max ?? BudgetBand.customMax;
-    return product.price >= min && product.price <= max;
+    return price >= min && price <= max;
   }
 
   static String _normalize(String value) =>

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../core/theme/app_colors.dart';
+import '../features/categories/presentation/category_screen.dart';
 import '../features/gift_finder/presentation/gift_finder_flow_screen.dart';
-import '../features/library/presentation/library_screen.dart';
+import '../features/history/presentation/history_screen.dart';
 import '../features/home/presentation/home_screen.dart';
+import '../features/library/presentation/favorites_screen.dart';
 import 'app_scope.dart';
 
 /// 바텀 탭 선택 상태. push된 화면에서도 탭 전환을 요청할 수 있다.
@@ -10,12 +13,18 @@ class ShellTabController extends ValueNotifier<int> {
   ShellTabController() : super(homeTab);
 
   static const int homeTab = 0;
-  static const int finderTab = 1;
-  static const int libraryTab = 2;
+  static const int categoryTab = 1;
+  static const int finderTab = 2;
+  static const int favoritesTab = 3;
+  static const int historyTab = 4;
 
   void goTo(int index) => value = index;
 }
 
+/// 홈 / 카테고리 / 선물추천 / 찜 / 기록 5개 탭.
+///
+/// `IndexedStack`을 유지해 탭을 바꿔도 진행 중인 추천 세션과 스크롤 위치가
+/// 보존된다.
 class AppShell extends StatelessWidget {
   const AppShell({super.key});
 
@@ -31,33 +40,71 @@ class AppShell extends StatelessWidget {
             index: index,
             children: const <Widget>[
               HomeScreen(),
+              CategoryScreen(),
               GiftFinderFlowScreen(),
-              LibraryScreen(),
+              FavoritesScreen(),
+              HistoryScreen(),
             ],
           ),
-          bottomNavigationBar: NavigationBar(
-            selectedIndex: index,
-            onDestinationSelected: tab.goTo,
-            destinations: const <NavigationDestination>[
-              NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home),
-                label: '홈',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.card_giftcard_outlined),
-                selectedIcon: Icon(Icons.card_giftcard),
-                label: '선물 찾기',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.bookmark_border),
-                selectedIcon: Icon(Icons.bookmark),
-                label: '보관함',
-              ),
-            ],
+          bottomNavigationBar: _ShellNavigationBar(
+            index: index,
+            onSelected: tab.goTo,
           ),
         );
       },
+    );
+  }
+}
+
+class _ShellNavigationBar extends StatelessWidget {
+  const _ShellNavigationBar({required this.index, required this.onSelected});
+
+  final int index;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.outline)),
+      ),
+      child: NavigationBar(
+        selectedIndex: index,
+        onDestinationSelected: onSelected,
+        destinations: const <NavigationDestination>[
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: '홈',
+            tooltip: '홈',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.grid_view_outlined),
+            selectedIcon: Icon(Icons.grid_view_rounded),
+            label: '카테고리',
+            tooltip: '카테고리',
+          ),
+          // 서비스 핵심 기능이라 채워진 아이콘으로 무게를 준다.
+          NavigationDestination(
+            icon: Icon(Icons.redeem_outlined),
+            selectedIcon: Icon(Icons.redeem),
+            label: '선물추천',
+            tooltip: '선물추천',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.favorite_border),
+            selectedIcon: Icon(Icons.favorite),
+            label: '찜',
+            tooltip: '찜한 상품',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.history_outlined),
+            selectedIcon: Icon(Icons.history),
+            label: '기록',
+            tooltip: '기록',
+          ),
+        ],
+      ),
     );
   }
 }

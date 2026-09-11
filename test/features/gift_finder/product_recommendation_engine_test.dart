@@ -91,7 +91,7 @@ void main() {
 
   test('예산을 크게 넘는 상품은 예산 점수를 거의 받지 못한다', () {
     final Product expensive = catalog.products.reduce(
-      (Product a, Product b) => a.price >= b.price ? a : b,
+      (Product a, Product b) => a.sortPrice >= b.sortPrice ? a : b,
     );
     final int fitInBudget = engine.budgetFit(
       intentOf(budget: BudgetBand.from50kTo100k),

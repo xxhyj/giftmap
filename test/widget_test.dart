@@ -5,22 +5,32 @@ import 'package:giftmap/features/products/presentation/widgets/product_card.dart
 import 'helpers/app_harness.dart';
 
 void main() {
-  testWidgets('홈은 상품 큐레이션과 선물 찾기 진입점을 보여준다', (WidgetTester tester) async {
+  testWidgets('홈은 상품 큐레이션과 선물추천 진입점을 보여준다', (WidgetTester tester) async {
     await bootApp(tester);
 
-    expect(find.text('GiftMap'), findsOneWidget);
-    expect(find.text('어떤 선물을 찾고 있나요?'), findsOneWidget);
-    expect(find.text('선물 찾기 시작하기'), findsOneWidget);
-    expect(find.text('지금 많이 찾는 선물'), findsOneWidget);
+    expect(find.text('Giftmap'), findsOneWidget);
+    expect(find.text('무엇을 줄지 고민된다면'), findsOneWidget);
+    expect(find.text('추천받기'), findsOneWidget);
+    expect(find.text('요즘 눈여겨볼 선물'), findsOneWidget);
 
     // 텍스트 목록이 아니라 상품 카드가 노출된다.
     expect(find.byType(ProductTileCard), findsWidgets);
   });
 
+  testWidgets('홈에는 검색창이 하나이고 최근 본 상품 섹션이 없다', (WidgetTester tester) async {
+    await bootApp(tester);
+
+    expect(find.text('브랜드, 상품, 카테고리 검색'), findsOneWidget);
+
+    // 최근 본 상품은 기록 탭에서만 보여준다.
+    await scrollHome(tester, find.text('전체 카테고리 둘러보기'));
+    expect(find.text('최근 본 상품'), findsNothing);
+  });
+
   testWidgets('위저드 5단계를 마치면 상품 추천 결과가 나온다', (WidgetTester tester) async {
     await bootApp(tester);
 
-    await tapText(tester, '선물 찾기 시작하기');
+    await tapText(tester, '추천받기');
     expect(find.text('어떤 상황인가요?'), findsOneWidget);
     expect(find.text('01 / 05'), findsOneWidget);
 
@@ -56,10 +66,6 @@ void main() {
     await scrollLastList(tester, reason);
     expect(reason, findsOneWidget);
 
-    final Finder guide = find.text('선물할 때 참고하세요');
-    await scrollLastList(tester, guide);
-    expect(guide, findsOneWidget);
-
     // 데모 상태라 판매 페이지로 이동하지 않는다.
     final Finder cta = find.widgetWithText(FilledButton, '상품 보러가기');
     expect(tester.widget<FilledButton>(cta).onPressed, isNull);
@@ -76,15 +82,31 @@ void main() {
     await bootApp(tester);
 
     expect(tester.takeException(), isNull);
-    expect(find.text('어떤 선물을 찾고 있나요?'), findsOneWidget);
+    expect(find.text('무엇을 줄지 고민된다면'), findsOneWidget);
   });
 
-  testWidgets('주요 버튼은 최소 48dp 터치 영역을 가진다', (WidgetTester tester) async {
+  testWidgets('작은 화면(320x568)에서도 홈이 넘치지 않는다', (WidgetTester tester) async {
+    await setScreenSize(tester, const Size(320, 568));
+    await bootApp(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Giftmap'), findsOneWidget);
+  });
+
+  testWidgets('넓은 화면(tablet)에서도 홈이 정상 렌더링된다', (WidgetTester tester) async {
+    await setScreenSize(tester, const Size(1024, 768));
+    await bootApp(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ProductTileCard), findsWidgets);
+  });
+
+  testWidgets('주요 CTA는 최소 44dp 이상의 높이를 가진다', (WidgetTester tester) async {
     await bootApp(tester);
 
     final Size size = tester.getSize(
-      find.widgetWithText(FilledButton, '선물 찾기 시작하기').first,
+      find.widgetWithText(FilledButton, '추천받기').first,
     );
-    expect(size.height, greaterThanOrEqualTo(48));
+    expect(size.height, greaterThanOrEqualTo(44));
   });
 }

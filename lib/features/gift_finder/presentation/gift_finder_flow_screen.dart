@@ -5,6 +5,7 @@ import '../../../app/app_scope.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/bottom_action_bar.dart';
+import '../../../core/widgets/responsive_body.dart';
 import '../application/gift_finder_controller.dart';
 import 'widgets/avoid_step.dart';
 import 'widgets/budget_step.dart';
@@ -101,24 +102,26 @@ class _GiftFinderFlowScreenState extends State<GiftFinderFlowScreen> {
             ),
           ),
           body: SafeArea(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screen,
-                AppSpacing.md,
-                AppSpacing.screen,
-                AppSpacing.lg,
+            child: ResponsiveBody(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screen,
+                  AppSpacing.md,
+                  AppSpacing.screen,
+                  AppSpacing.lg,
+                ),
+                children: <Widget>[
+                  Text(_titles[controller.step], style: text.headlineSmall),
+                  const SizedBox(height: AppSpacing.lg),
+                  switch (controller.step) {
+                    0 => SituationStep(controller: controller),
+                    1 => RecipientStep(controller: controller),
+                    2 => BudgetStep(controller: controller),
+                    3 => PreferenceStep(controller: controller),
+                    _ => AvoidStep(controller: controller),
+                  },
+                ],
               ),
-              children: <Widget>[
-                Text(_titles[controller.step], style: text.headlineSmall),
-                const SizedBox(height: AppSpacing.lg),
-                switch (controller.step) {
-                  0 => SituationStep(controller: controller),
-                  1 => RecipientStep(controller: controller),
-                  2 => BudgetStep(controller: controller),
-                  3 => PreferenceStep(controller: controller),
-                  _ => AvoidStep(controller: controller),
-                },
-              ],
             ),
           ),
           bottomNavigationBar: BottomActionBar(

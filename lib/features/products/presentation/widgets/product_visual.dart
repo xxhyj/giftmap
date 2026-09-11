@@ -113,6 +113,7 @@ class ProductImage extends StatelessWidget {
     this.aspectRatio = 1,
     this.radius = AppRadius.card,
     this.showBrandMark = true,
+    this.expand = false,
     super.key,
   });
 
@@ -121,23 +122,32 @@ class ProductImage extends StatelessWidget {
   final double radius;
   final bool showBrandMark;
 
+  /// true면 비율 대신 부모가 준 공간을 모두 채운다.
+  /// 카드에서 이미지가 남는 높이를 흡수해 텍스트가 잘리지 않게 한다.
+  final bool expand;
+
   @override
   Widget build(BuildContext context) {
     final ProductVisual visual = ProductVisual.of(product.category);
     final String? asset = product.imageAsset;
 
+    final Widget content = asset != null
+        ? Image.asset(
+            asset,
+            fit: BoxFit.cover,
+            semanticLabel: product.productName,
+          )
+        : _PaintedVisual(
+            visual: visual,
+            product: product,
+            showBrandMark: showBrandMark,
+          );
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
-      child: AspectRatio(
-        aspectRatio: aspectRatio,
-        child: asset != null
-            ? Image.asset(asset, fit: BoxFit.cover)
-            : _PaintedVisual(
-                visual: visual,
-                product: product,
-                showBrandMark: showBrandMark,
-              ),
-      ),
+      child: expand
+          ? SizedBox.expand(child: content)
+          : AspectRatio(aspectRatio: aspectRatio, child: content),
     );
   }
 }
@@ -187,7 +197,7 @@ class _PaintedVisual extends StatelessWidget {
               left: AppSpacing.sm,
               bottom: AppSpacing.sm,
               child: Text(
-                product.brandName,
+                product.brandLabel,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(

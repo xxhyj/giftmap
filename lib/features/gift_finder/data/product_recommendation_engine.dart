@@ -167,12 +167,17 @@ class ProductRecommendationEngine {
   }
 
   /// 예산 적합도 0..25. 예산을 넘기면 크게 깎는다.
+  ///
+  /// 가격을 알 수 없는 상품은 예산으로 판단할 수 없으므로 중간값을 준다.
   int budgetFit(GiftIntent intent, Product product) {
-    final BudgetRange range = intent.budgetRange;
-    if (product.price >= range.min && product.price <= range.max) return 25;
+    final int? price = product.price;
+    if (price == null) return 10;
 
-    if (product.price > range.max) {
-      final int over = product.price - range.max;
+    final BudgetRange range = intent.budgetRange;
+    if (price >= range.min && price <= range.max) return 25;
+
+    if (price > range.max) {
+      final int over = price - range.max;
       final double ratio = over / math.max(1, range.max);
       if (ratio <= 0.15) return 10;
       if (ratio <= 0.4) return 3;
@@ -180,7 +185,7 @@ class ProductRecommendationEngine {
     }
 
     // 예산보다 저렴한 경우는 과하게 깎지 않는다.
-    final int under = range.min - product.price;
+    final int under = range.min - price;
     final double ratio = under / math.max(1, range.min);
     if (ratio <= 0.25) return 16;
     if (ratio <= 0.6) return 8;

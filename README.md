@@ -28,8 +28,9 @@ lib/
 ├── app/            # MaterialApp, AppScope(의존성), AppShell(바텀 탭), AppRouter
 ├── core/           # theme, 공통 위젯, 제휴 정책, 분석 이벤트, 실패 타입, 포맷 유틸
 ├── data/           # 번들 JSON: 카테고리 / 위험 규칙 / 검색어 템플릿 / 상품 카탈로그
-└── features/       # feature-first: home, search, products, library,
-                    #                gift_finder, history, anniversary, settings, splash
+└── features/       # feature-first: home, categories, search, products,
+                    #                library(찜), gift_finder, history,
+                    #                anniversary, settings, splash
 ```
 
 `gift_finder`는 `domain` → `data` → `application` → `presentation` 순서로 나뉜다.
@@ -50,6 +51,17 @@ lib/
 - 3개가 안 되면 `safeDefault` 카테고리로 보충
 - 결과는 항상 서로 다른 카테고리 정확히 3개
 
+## 화면 구조
+
+하단 탭은 **홈 / 카테고리 / 선물추천 / 찜 / 기록** 5개다.
+검색은 탭이 아니라 홈 최상단 검색창에서 들어간다.
+
+- **홈**: 선물추천 배너, 상황별 빠른 시작, 큐레이션 캐러셀(스와이프 + 이전/다음 버튼)
+- **카테고리**: 상위 그룹 → 세부 카테고리 → 정렬 → 반응형 상품 그리드
+- **선물추천**: 상황·받는 사람·예산·느낌·피하고 싶은 것 5단계 → 상품 추천 결과
+- **찜**: 저장한 상품 모아보기(앱을 다시 켜도 유지)
+- **기록**: 최근 본 상품 / 추천 기록 (검색 키워드는 저장하지 않음)
+
 ## 데이터와 경계
 
 - 카테고리 가격은 **데모 시세**이며 실시간 판매가가 아니다. UI 전반에 이 고지가 붙는다.
@@ -59,11 +71,24 @@ lib/
 - 상품 이미지는 외부 URL을 쓰지 않는다. asset이 없으면 카테고리별 로컬 비주얼을 그린다.
 - 찜과 최근 본 상품은 기기 로컬에 저장되어 앱을 다시 켜도 유지된다.
 - 추천 기록과 기념일은 인메모리로 보관한다. 앱을 다시 켜면 비워진다.
+- 상품 수·카테고리 수를 코드에 고정하지 않는다. 모든 화면이 카탈로그 길이를 따른다.
+- 브랜드·가격·이미지·판매 URL이 없어도 화면이 깨지지 않는다
+  (가격이 없으면 "가격 확인 필요", URL이 없으면 구매 CTA 비활성).
 - 상품 상세의 "상품 보러가기"는 데모 상태로 비활성화되어 있고, 이유를 버튼 위에 설명한다.
 - 자연어 검색은 외부 AI 없이 로컬 키워드 파서만 사용하며, 신뢰도가 낮은 조건은
   사용자가 직접 고르도록 되묻는다.
 
 ## 다음 단계
 
-`RecommendationRepository` 계약만 유지되어 있어, 이후 원격 구현을 같은 계약으로 추가하면 된다.
+`RecommendationRepository`와 `ProductDataSource` 계약만 유지되어 있어,
+이후 실제 상품 DB 구현을 같은 계약으로 추가하면 된다.
 주입 지점은 `lib/app/giftmap_app.dart`의 `_bootstrap()` 한 곳이다.
+
+## 디자인 되돌리기
+
+이전(코랄 중심) 디자인은 백업 브랜치에 그대로 보존되어 있다.
+
+```bash
+git switch backup/giftmap-ui-before-refresh-20260912-0143   # 이전 디자인
+git switch feat/giftmap-ui-refresh                          # 새 디자인
+```

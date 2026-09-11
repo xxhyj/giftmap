@@ -12,21 +12,32 @@
 
 ## 2. 컬러 시스템 (`app_colors.dart`)
 
-| 토큰 | 값 | 용도 |
-|---|---|---|
-| `brandCoral` | `#F4635A` | 주요 CTA, 선택 상태, 진행률 |
-| `brandCoralDark` | `#C94840` | 브랜드 텍스트, 텍스트 버튼, D-day |
-| `ink` | `#1B1A1F` | 본문·제목 |
-| `inkMuted` | `#5C5A66` | 보조 텍스트, 비활성 아이콘 |
-| `surface` | `#FFFFFF` | 기본 배경 |
-| `surfaceMuted` | `#F5F4F7` | 칩·입력·고지 블록 배경 |
-| `outline` | `#DDDAE3` | 경계선 |
-| `riskSafe` | `#1F7A4D` | 위험도 safe |
-| `riskCaution` | `#8A5A00` | 위험도 caution |
-| `riskAvoid` | `#9B1C1C` | 위험도 avoid, 입력 오류 |
+빨간색 중심 팔레트를 걷어내고, **차분한 딥 그린(primary) + 따뜻한 클레이(accent)**
+조합으로 바꿨다. 배경은 상품 이미지와 경쟁하지 않는 따뜻한 오프화이트다.
 
-- `ColorScheme.fromSeed(brandCoral)` 위에 위 값들을 덮어써 Material 3 스킴을 만든다.
-- **색상만으로 의미를 전달하지 않는다.** 위험도는 아이콘+라벨, 적합도는 점 5개+수치를 병행한다.
+| 토큰 | 값 | 역할 |
+|---|---|---|
+| `primary` | `#2E5D4B` | 주요 CTA, 선택 상태, 브랜드 워드마크 |
+| `onPrimary` | `#FFFFFF` | primary 위 텍스트 |
+| `primaryContainer` | `#DCE8E1` | 배너·추천 이유 블록, 내비 인디케이터 |
+| `onPrimaryContainer` | `#16352A` | primaryContainer 위 텍스트 |
+| `accent` | `#C0714F` | 찜 활성, 할인율 — 절제된 포인트 |
+| `accentContainer` | `#F7E7DE` | 추천 배지 배경 |
+| `onAccentContainer` | `#6B3721` | 배지 텍스트 |
+| `background` | `#FBF9F6` | 화면 바탕(따뜻한 오프화이트) |
+| `surface` | `#FFFFFF` | 카드·입력·내비게이션 |
+| `surfaceVariant` | `#F3F0EB` | 칩·스켈레톤·보조 블록 |
+| `textPrimary` | `#1E2422` | 제목·본문 |
+| `textSecondary` | `#5F6B66` | 보조 텍스트 |
+| `textTertiary` | `#8A938F` | 캡션·비활성 아이콘 |
+| `outline` | `#E3DED6` | 얇은 경계선 |
+| `outlineStrong` | `#CFC8BE` | 버튼 테두리 |
+| `error` | `#B3261E` | **오직 오류·파괴적 행동** |
+| `success` / `warning` | `#2F6D4F` / `#8A5A00` | 위험도 표기 보조 |
+
+- `ColorScheme.fromSeed(primary)` 위에 위 값을 덮어써 Material 3 스킴을 만든다.
+- **색상만으로 의미를 전달하지 않는다.** 탭 선택은 아이콘 채움+굵기, 찜은 하트 채움,
+  캐러셀 버튼 비활성은 semantics로 함께 전달한다.
 - 본문 대비는 WCAG AA(4.5:1) 이상을 목표로 한다.
 
 ## 3. Typography (`app_text_styles.dart`)
@@ -56,8 +67,10 @@ minTouchTarget 48 · primaryButtonHeight 56
 ```
 
 ```
-radius: chip 999 · button 16 · card 20 · sheet 28
+radius(app_radius.dart): xs 8 · button 12 · card 16 · xl 20 · sheet 24 · chip 999
 ```
+
+`AppSpacing.screen`은 16(8pt 배수), `maxContentWidth`는 720이다.
 
 ## 5. Button
 
@@ -89,7 +102,11 @@ radius: chip 999 · button 16 · card 20 · sheet 28
 
 ## 9. Navigation
 
-- `NavigationBar` 3탭(홈 / 선물 찾기 / 보관함), 높이 68, 인디케이터는 코랄 14% 틴트
+- `NavigationBar` 5탭(홈 / 카테고리 / 선물추천 / 찜 / 기록), 높이 66,
+  인디케이터는 `primaryContainer`
+- 선택 상태는 색 + 채워진 아이콘 + label weight(w700)로 함께 전달한다
+- 5개 라벨이 작은 화면에서도 잘리지 않도록 라벨 크기를 11.5sp로 두고 항상 표시한다
+- 모든 destination에 tooltip(= semantic label)을 준다
 - 선택 아이콘은 채움(filled), 비선택은 외곽선(outlined)으로 형태까지 바꾼다
 - AppBar는 elevation 0, 배경 `surface`, 왼쪽 정렬 제목
 
@@ -126,10 +143,15 @@ radius: chip 999 · button 16 · card 20 · sheet 28
 - 회피 조건이 있으면 제외 칩으로 함께 보여준다
 - 마지막에 데모 데이터 고지
 
-### 홈 섹션
+### 홈 섹션과 캐러셀
 
-- 가로 캐러셀(인기·가격대·관계·상황)과 2열 그리드(큐레이션)를 번갈아 써 단조로움을 피한다
-- 섹션 머리글은 `SectionTitleRow`로 통일하고, 필요할 때만 "더 보기"를 붙인다
+- 홈은 콤팩트한 선물추천 배너 → 상황 빠른 시작 → 큐레이션 캐러셀 순으로 쌓인다
+- 캐러셀은 `PageView`(viewportFraction)로 손가락 스와이프를 지원하고,
+  다음 카드가 살짝 보이도록 viewport를 카드보다 좁게 잡는다
+- 섹션 머리글(`CarouselSectionHeader`)에 둥근 이전/다음 버튼을 둔다.
+  첫 페이지에서 이전, 마지막에서 다음이 비활성이며 스와이프 상태와 동기화된다
+- 각 캐러셀은 자신의 `PageController`를 가지며 화면 폭이 바뀌면 다시 만든다
+- 상품 0개면 섹션 자체를 그리지 않고, 1개면 화살표가 비활성이다
 
 ## 13. Empty / Loading / Error State
 

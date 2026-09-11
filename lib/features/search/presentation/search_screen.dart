@@ -26,8 +26,6 @@ class _SearchScreenState extends State<SearchScreen> {
   late final TextEditingController _controller = TextEditingController(
     text: widget.initialQuery ?? '',
   );
-  final List<String> _recentQueries = <String>[];
-
   String _query = '';
   String? _category;
   BudgetBand? _priceRange;
@@ -57,15 +55,10 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Future<void> _submit(String raw) async {
     final String query = raw.trim();
+    // 검색 키워드는 저장하지 않는다(검색 기록 미수집).
     setState(() {
       _query = query;
       _searching = true;
-      if (query.isNotEmpty) {
-        _recentQueries
-          ..remove(query)
-          ..insert(0, query);
-        if (_recentQueries.length > 8) _recentQueries.removeLast();
-      }
     });
     // 로컬 검색은 즉시 끝나지만 결과가 바뀌는 순간을 인지할 수 있게 한 프레임 둔다.
     await Future<void>.delayed(const Duration(milliseconds: 120));
@@ -126,34 +119,6 @@ class _SearchScreenState extends State<SearchScreen> {
           padding: const EdgeInsets.only(bottom: AppSpacing.bottomAction),
           children: <Widget>[
             if (!hasQuery) ...<Widget>[
-              if (_recentQueries.isNotEmpty) ...<Widget>[
-                _Padded(
-                  child: SectionHeader(
-                    title: '최근 검색어',
-                    trailing: TextButton(
-                      onPressed: () => setState(_recentQueries.clear),
-                      child: const Text('전체 삭제'),
-                    ),
-                  ),
-                ),
-                _Padded(
-                  child: ChipWrap(
-                    children: _recentQueries
-                        .map(
-                          (String q) => SelectableChip(
-                            label: q,
-                            selected: false,
-                            onTap: () {
-                              _controller.text = q;
-                              _submit(q);
-                            },
-                          ),
-                        )
-                        .toList(growable: false),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-              ],
               const _Padded(child: SectionHeader(title: '추천 검색어')),
               _Padded(
                 child: ChipWrap(
@@ -172,7 +137,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
-              const _Padded(child: SectionHeader(title: '인기 카테고리')),
+              const _Padded(child: SectionHeader(title: '카테고리로 찾기')),
               _Padded(
                 child: ChipWrap(
                   children: catalog.categories

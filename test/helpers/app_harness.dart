@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:giftmap/app/giftmap_app.dart';
 import 'package:giftmap/features/library/data/in_memory_id_list_storage.dart';
+import 'package:giftmap/features/products/domain/product_catalog.dart';
 import 'package:giftmap/features/splash/presentation/splash_screen.dart';
 
 import '../fixtures/ruleset_fixture.dart';
+
+export '../fixtures/ruleset_fixture.dart' show loadBundledCatalog;
 
 /// 위젯 테스트 공통 헬퍼.
 ///
@@ -78,7 +81,7 @@ Future<void> runWizard(
   String relationship = '친구',
   String budget = '3~5만원',
 }) async {
-  await tapText(tester, '선물 찾기 시작하기');
+  await tapText(tester, '추천받기');
   await tapText(tester, situation);
   await tapText(tester, '다음');
   await tapText(tester, relationship);
@@ -87,4 +90,28 @@ Future<void> runWizard(
   await tapText(tester, '다음');
   await tapText(tester, '다음');
   await tapText(tester, '추천 상품 보기');
+}
+
+/// 특정 화면 크기에서의 회귀를 확인할 때 쓴다.
+Future<void> setScreenSize(WidgetTester tester, Size size) async {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+}
+
+/// 바텀 탭으로 이동한다.
+Future<void> goToTab(WidgetTester tester, String label) async {
+  await tester.tap(find.byTooltip(label).last);
+  await tester.pumpAndSettle();
+}
+
+/// 테스트에서 화면에 표시된 개수와 카탈로그 개수를 비교할 때 쓴다.
+ProductCatalog loadCatalogForTest() => loadBundledCatalog();
+
+/// 홈 목록을 세로로 끌어 캐러셀이 화면 안에 들어오게 한다.
+/// 화면 밖 위젯에 제스처를 보내면 아무 일도 일어나지 않으므로 필요하다.
+Future<void> bringIntoView(WidgetTester tester, {double dy = -260}) async {
+  await tester.drag(find.byType(Scrollable).first, Offset(0, dy));
+  await tester.pumpAndSettle();
 }

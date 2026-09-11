@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../app/app_scope.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/widgets/responsive_body.dart';
 import '../../../core/widgets/rounded_surface.dart';
 import '../../../core/widgets/selectable_chip.dart';
 import '../../gift_finder/domain/gift_intent.dart';
@@ -39,7 +40,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     super.didChangeDependencies();
     if (_recorded) return;
     _recorded = true;
-    AppScope.of(context).recentlyViewed.markViewed(widget.product.id);
+    // build 중 알림이 퍼지지 않도록 첫 프레임 이후에 기록한다.
+    final AppDependencies deps = AppScope.of(context);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) deps.recentlyViewed.markViewed(widget.product.id);
+    });
   }
 
   void _openRelated(Product product) {
@@ -71,90 +76,97 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       ),
       body: SafeArea(
         bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-          children: <Widget>[
-            Stack(
-              children: <Widget>[
-                ProductImage(product: product, radius: 0, showBrandMark: false),
-                if (product.isDemo)
-                  const Positioned(
-                    left: AppSpacing.screen,
-                    top: AppSpacing.md,
-                    child: DemoBadge(),
-                  ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screen,
-                AppSpacing.lg,
-                AppSpacing.screen,
-                0,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: ResponsiveBody(
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+            children: <Widget>[
+              Stack(
                 children: <Widget>[
-                  Text(product.brandName, style: text.labelMedium),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(product.productName, style: text.headlineSmall),
-                  const SizedBox(height: AppSpacing.md),
-                  ProductPrice(product: product, large: true),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(deps.productDisclaimer, style: text.labelSmall),
-                  const SizedBox(height: AppSpacing.lg),
-                  Text(product.description, style: text.bodyLarge),
-                  const SizedBox(height: AppSpacing.lg),
-                  _ReasonBlock(
+                  ProductImage(
                     product: product,
-                    customReason: widget.recommendationReason,
+                    radius: 0,
+                    showBrandMark: false,
                   ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Text('선물할 때 참고하세요', style: text.titleMedium),
-                  const SizedBox(height: AppSpacing.sm),
-                  _InfoRow(
-                    label: '추천 상황',
-                    value: product.occasions.isEmpty
-                        ? '상황을 가리지 않아요'
-                        : product.occasions
-                              .map((GiftSituation s) => s.label)
-                              .join(' · '),
-                  ),
-                  _InfoRow(
-                    label: '추천 대상',
-                    value: product.recipientTypes.isEmpty
-                        ? '관계를 가리지 않아요'
-                        : product.recipientTypes
-                              .map((RelationshipType r) => r.label)
-                              .join(' · '),
-                  ),
-                  _InfoRow(label: '가격대', value: product.priceRange.label),
-                  if (product.subCategory.isNotEmpty)
-                    _InfoRow(label: '분류', value: product.subCategory),
-                  if (product.tags.isNotEmpty) ...<Widget>[
-                    const SizedBox(height: AppSpacing.md),
-                    ChipWrap(
-                      children: product.tags
-                          .map(
-                            (String tag) => ReadOnlyChip(
-                              label: '#${AvoidTags.labels[tag] ?? tag}',
-                            ),
-                          )
-                          .toList(growable: false),
+                  if (product.isDemo)
+                    const Positioned(
+                      left: AppSpacing.screen,
+                      top: AppSpacing.md,
+                      child: DemoBadge(),
                     ),
-                  ],
                 ],
               ),
-            ),
-            if (related.isNotEmpty) ...<Widget>[
-              SectionTitleRow(
-                title: '비슷한 ${product.categoryLabel} 선물',
-                subtitle: '같은 분류에서 함께 비교해 보세요',
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screen,
+                  AppSpacing.lg,
+                  AppSpacing.screen,
+                  0,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(product.brandLabel, style: text.labelMedium),
+                    const SizedBox(height: AppSpacing.xs),
+                    // 상세에서는 말줄임 없이 전체 상품명을 보여준다.
+                    Text(product.productName, style: text.headlineSmall),
+                    const SizedBox(height: AppSpacing.md),
+                    ProductPrice(product: product, large: true),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(deps.productDisclaimer, style: text.labelSmall),
+                    const SizedBox(height: AppSpacing.lg),
+                    Text(product.description, style: text.bodyLarge),
+                    const SizedBox(height: AppSpacing.lg),
+                    _ReasonBlock(
+                      product: product,
+                      customReason: widget.recommendationReason,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    Text('선물할 때 참고하세요', style: text.titleMedium),
+                    const SizedBox(height: AppSpacing.sm),
+                    _InfoRow(
+                      label: '추천 상황',
+                      value: product.occasions.isEmpty
+                          ? '상황을 가리지 않아요'
+                          : product.occasions
+                                .map((GiftSituation s) => s.label)
+                                .join(' · '),
+                    ),
+                    _InfoRow(
+                      label: '추천 대상',
+                      value: product.recipientTypes.isEmpty
+                          ? '관계를 가리지 않아요'
+                          : product.recipientTypes
+                                .map((RelationshipType r) => r.label)
+                                .join(' · '),
+                    ),
+                    _InfoRow(label: '가격대', value: product.priceRange.label),
+                    if (product.subCategory.isNotEmpty)
+                      _InfoRow(label: '분류', value: product.subCategory),
+                    if (product.tags.isNotEmpty) ...<Widget>[
+                      const SizedBox(height: AppSpacing.md),
+                      ChipWrap(
+                        children: product.tags
+                            .map(
+                              (String tag) => ReadOnlyChip(
+                                label: '#${AvoidTags.labels[tag] ?? tag}',
+                              ),
+                            )
+                            .toList(growable: false),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-              ProductCarousel(products: related, onOpen: _openRelated),
-              const SizedBox(height: AppSpacing.lg),
+              if (related.isNotEmpty) ...<Widget>[
+                SectionTitleRow(
+                  title: '비슷한 ${product.categoryLabel} 선물',
+                  subtitle: '같은 분류에서 함께 비교해 보세요',
+                ),
+                ProductCarousel(products: related, onOpen: _openRelated),
+                const SizedBox(height: AppSpacing.lg),
+              ],
             ],
-          ],
+          ),
         ),
       ),
       bottomNavigationBar: _DetailActionBar(product: product),
@@ -235,6 +247,10 @@ class _DetailActionBar extends StatelessWidget {
 
   final Product product;
 
+  /// 판매 페이지 주소가 없으면 구매 CTA를 활성화하지 않는다.
+  bool get _canOpenStore =>
+      product.productUrl != null && product.productUrl!.isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -254,7 +270,9 @@ class _DetailActionBar extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Text(
-              '데모 상품이라 판매 페이지로 이동하지 않아요.',
+              _canOpenStore
+                  ? '판매처 페이지로 이동해요.'
+                  : '데모 상품이라 실제 판매 페이지 연동은 준비 중이에요.',
               style: Theme.of(context).textTheme.labelSmall,
               textAlign: TextAlign.center,
             ),

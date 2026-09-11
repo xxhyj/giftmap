@@ -10,7 +10,7 @@ void main() {
 
     await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();
-    await tapText(tester, '보관함');
+    await goToTab(tester, '기록');
     await tapText(tester, '추천 기록');
     await tapText(tester, '가족 · 집들이');
 
@@ -62,7 +62,7 @@ void main() {
 
     await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();
-    await tapText(tester, '홈');
+    await goToTab(tester, '홈');
 
     await tester.tap(find.byTooltip('설정'));
     await tester.pumpAndSettle();
@@ -74,7 +74,7 @@ void main() {
 
     await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();
-    await tapText(tester, '보관함');
+    await goToTab(tester, '기록');
     await tapText(tester, '추천 기록');
     expect(find.text('아직 추천 기록이 없어요'), findsOneWidget);
   });

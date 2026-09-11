@@ -20,7 +20,8 @@ void main() {
   test('모든 상품은 데모 표시와 유효한 가격을 가진다', () {
     for (final Product product in catalog.products) {
       expect(product.isDemo, isTrue);
-      expect(product.price, greaterThan(0));
+      expect(product.price, isNotNull);
+      expect(product.price!, greaterThan(0));
       expect(product.productName, isNotEmpty);
       expect(product.brandName, isNotEmpty);
       expect(product.description, isNotEmpty);
@@ -30,7 +31,7 @@ void main() {
   test('할인 상품은 정가가 판매가보다 높다', () {
     for (final Product product in catalog.discounted) {
       expect(product.originalPrice, isNotNull);
-      expect(product.originalPrice! > product.price, isTrue);
+      expect(product.originalPrice! > product.price!, isTrue);
       expect(product.discountRate, greaterThan(0));
     }
   });
@@ -74,7 +75,9 @@ void main() {
     );
     expect(results, isNotEmpty);
     expect(
-      results.every((Product p) => p.price > 10000 && p.price <= 30000),
+      results.every(
+        (Product p) => p.price != null && p.price! > 10000 && p.price! <= 30000,
+      ),
       isTrue,
     );
   });
@@ -82,8 +85,8 @@ void main() {
   test('정렬 기준이 결과 순서를 바꾼다', () {
     final List<Product> low = catalog.search('', sort: ProductSort.priceLow);
     final List<Product> high = catalog.search('', sort: ProductSort.priceHigh);
-    expect(low.first.price, lessThanOrEqualTo(low.last.price));
-    expect(high.first.price, greaterThanOrEqualTo(high.last.price));
+    expect(low.first.sortPrice, lessThanOrEqualTo(low.last.sortPrice));
+    expect(high.first.sortPrice, greaterThanOrEqualTo(high.last.sortPrice));
   });
 
   test('같은 검색은 항상 같은 순서를 만든다', () {
@@ -123,7 +126,9 @@ void main() {
       isTrue,
     );
     expect(
-      catalog.byPriceUnder(30000).every((Product p) => p.price <= 30000),
+      catalog
+          .byPriceUnder(30000)
+          .every((Product p) => p.price != null && p.price! <= 30000),
       isTrue,
     );
   });

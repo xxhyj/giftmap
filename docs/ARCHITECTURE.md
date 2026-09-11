@@ -20,7 +20,8 @@ lib/
 │   ├── app_shell.dart            ShellTabController + 3탭 IndexedStack
 │   └── app_router.dart           MaterialPageRoute 생성 지점
 ├── core/
-│   ├── theme/                    colors, spacing, text styles, theme
+│   ├── theme/                    app_colors, app_spacing, app_radius,
+│   │                             app_typography, app_theme
 │   ├── widgets/                  selectable_chip, section_header,
 │   │                             bottom_action_bar, empty_state_view, rounded_surface
 │   ├── affiliate/                affiliate_link_policy.dart
@@ -32,6 +33,7 @@ lib/
 └── features/
     ├── splash/presentation
     ├── home/{presentation,widgets}
+    ├── categories/{domain,presentation}
     ├── search/presentation
     ├── products/{domain,data,presentation}
     ├── library/{domain,data,application,presentation}
@@ -69,11 +71,13 @@ feature 간 직접 의존 대신 콜백(`SessionCompleted`)이나 `AppScope`를 
 
 ```
 Splash ─(부트스트랩 완료)→ AppShell
-Home ─검색→ Search → ProductDetail
+Home ─검색창→ Search → ProductDetail
+Home ─카테고리 카드→ 카테고리 탭 → 상품 목록 → ProductDetail
 Home ─CTA/빠른 진입→ 선물 찾기 탭(01→02→03→04→05) → Analyzing → Result → ProductDetail
 Home ─큐레이션 카드→ ProductDetail → 비슷한 상품 → ProductDetail
-보관함(찜 / 최근 본 상품) → ProductDetail
-보관함(추천 기록) → HistoryDetail → 재추천(Analyzing) / 삭제
+찜 탭 → ProductDetail
+기록 탭(최근 본 상품) → ProductDetail
+기록 탭(추천 기록) → HistoryDetail → 재추천(Analyzing) / 삭제
 Home → Anniversary → 선물 추천받기(선물 찾기 탭)
 Home → Settings
 ```
@@ -94,7 +98,8 @@ Home → Settings
 | `RecommendationResult` | 결과 3개 + 예비 후보 + `usedFallback` + 생성 시각 |
 | `HistoryEntry` | 생성일 + `GiftIntent` + `RecommendationResult` |
 | `Anniversary` | 이름·관계·종류·날짜, `daysUntil`/`dDayLabel` |
-| `Product` | 상품 1건. 브랜드·가격·할인·태그·상황·관계·연령·데모 표시 |
+| `Product` | 상품 1건. `brandName`/`price`/`imageAsset`/`productUrl`이 모두 nullable |
+| `CategoryGroup` | 카테고리 화면의 상위 그룹(표현 계층 전용, 모델은 그대로) |
 | `ProductCatalog` | 상품 목록과 검색·필터·정렬·큐레이션 (전부 결정론적) |
 | `ProductPick` | 추천된 상품 + 점수 + 위험도 + 배지 + 이유 |
 
@@ -175,6 +180,19 @@ score = 30
   `experience_voucher`는 시세 근거가 없어 `priceAvailable: false`다.
 - 파싱 실패·데이터 손상 시 예외 대신 `safeDefaultRuleset`(안전 카테고리 3개)으로 진입한다.
 
+## 8-1. 유동적인 데이터 처리
+
+실제 상품 DB로 바뀌어도 화면이 깨지지 않도록 다음을 지킨다.
+
+- 상품 수·카테고리 수를 숫자로 가정하지 않는다. 모든 목록은 Repository가 돌려준
+  길이를 그대로 쓰고, `itemCount`에 상수를 넣지 않는다.
+- `CategoryGroup.resolve()`는 카탈로그에 실제로 있는 카테고리만 묶고,
+  어디에도 속하지 않은 카테고리는 "그 외"로 모은다.
+- `brandName`이 없으면 `brandLabel`이 카테고리 이름을 대신 보여준다.
+- `price`가 없으면 "가격 확인 필요"로 표시하고 가격 정렬에서는 뒤로 보낸다.
+- `imageAsset`이 없으면 카테고리 비주얼을 그린다.
+- `productUrl`이 없으면 구매 CTA를 활성화하지 않는다.
+
 ## 8-2. 찜 / 최근 본 상품
 
 - `IdListStorage`(키 → 상품 id 목록) 하나의 계약을 찜과 최근 본 상품이 공유한다.
@@ -222,5 +240,6 @@ score = 30
 | 분석 | 인메모리, 동의 기본 false | 서버 전송 |
 
 교체 지점은 `lib/app/giftmap_app.dart`의 `_bootstrap()` **한 곳**이다.
+`ProductDataSource`를 구현한 클래스를 그 자리에 넣으면 화면 수정 없이 실제 상품으로 바뀐다.
 화면과 컨트롤러는 구현체를 알지 못하므로 수정할 필요가 없다.
 현재 단계에서는 API client·서버 스텁·빈 인터페이스 구현체를 미리 만들지 않는다.
