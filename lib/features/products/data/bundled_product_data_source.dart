@@ -1,0 +1,71 @@
+import 'dart:convert';
+
+import 'package:flutter/services.dart';
+
+import '../domain/product.dart';
+import '../domain/product_catalog.dart';
+
+/// 상품 카탈로그 제공자. 현재 구현은 번들 JSON 하나뿐이다.
+abstract interface class ProductDataSource {
+  Future<ProductCatalog> load();
+}
+
+/// `lib/data/products.json`을 읽어 카탈로그를 만든다.
+///
+/// 손상된 상품은 건너뛰고 나머지를 사용한다. 전부 실패하면 빈 카탈로그를
+/// 돌려주고 화면이 빈 상태를 표시한다.
+final class BundledProductDataSource implements ProductDataSource {
+  // 이름 있는 매개변수는 private 이름을 쓸 수 없어 초기화 목록으로 대입한다.
+  // ignore: prefer_initializing_formals
+  const BundledProductDataSource({AssetBundle? bundle}) : _bundle = bundle;
+
+  static const String asset = 'lib/data/products.json';
+
+  final AssetBundle? _bundle;
+
+  @override
+  Future<ProductCatalog> load() async {
+    try {
+      final String raw = await (_bundle ?? rootBundle).loadString(asset);
+      final Object? decoded = jsonDecode(raw);
+      if (decoded is! Map<String, Object?>) {
+        throw const FormatException('catalog root must be a JSON object');
+      }
+      return parseCatalog(decoded);
+    } on Object {
+      return emptyCatalog;
+    }
+  }
+
+  /// 테스트와 런타임이 같은 파싱 경로를 쓰도록 공개한다.
+  static ProductCatalog parseCatalog(Map<String, Object?> json) {
+    final List<Product> products = <Product>[];
+    final Object? raw = json['products'];
+    if (raw is List) {
+      for (final Object? entry in raw) {
+        if (entry is! Map<String, Object?>) continue;
+        try {
+          products.add(Product.fromJson(entry));
+        } on FormatException {
+          continue;
+        }
+      }
+    }
+    return ProductCatalog(
+      products: List<Product>.unmodifiable(products),
+      version: json['catalogVersion'] is String
+          ? json['catalogVersion']! as String
+          : 'unknown',
+      disclaimer: json['disclaimer'] is String
+          ? json['disclaimer']! as String
+          : '데모 상품 데이터입니다. 실제 판매 상품이나 실시간 가격이 아닙니다.',
+    );
+  }
+}
+
+/// 카탈로그를 읽지 못했을 때 쓰는 빈 카탈로그.
+final ProductCatalog emptyCatalog = ProductCatalog(
+  products: const <Product>[],
+  version: 'empty',
+  disclaimer: '데모 상품 데이터입니다. 실제 판매 상품이나 실시간 가격이 아닙니다.',
+);

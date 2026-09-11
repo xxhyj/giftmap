@@ -1,0 +1,59 @@
+{
+  "rulesetVersion": "2026-09-11.1",
+  "rules": [
+    {
+      "id": "scent_taste_unknown",
+      "level": "caution",
+      "penalty": 8,
+      "tags": ["scent"],
+      "relationships": ["colleague", "manager", "acquaintance"],
+      "situations": [],
+      "message": "가까운 사이가 아니면 향 취향을 맞히기 어려워 교환 가능 구성이 안전해요."
+    },
+    {
+      "id": "food_restriction",
+      "level": "caution",
+      "penalty": 6,
+      "tags": ["food"],
+      "relationships": [],
+      "situations": [],
+      "message": "알레르기나 식이 제한이 있는지 먼저 확인하세요."
+    },
+    {
+      "id": "manager_personal_care",
+      "level": "avoid",
+      "penalty": 50,
+      "tags": ["beauty"],
+      "relationships": ["manager"],
+      "situations": [],
+      "message": "상사에게 개인 관리 제품은 사적인 평가로 읽힐 수 있어요."
+    },
+    {
+      "id": "newborn_strong_scent",
+      "level": "avoid",
+      "penalty": 50,
+      "tags": ["scent"],
+      "relationships": [],
+      "situations": ["birth"],
+      "message": "출산 직후에는 향이 강한 제품을 피하는 편이 좋아요."
+    },
+    {
+      "id": "plant_care_burden",
+      "level": "caution",
+      "penalty": 5,
+      "tags": ["plant"],
+      "relationships": ["colleague", "manager", "acquaintance"],
+      "situations": [],
+      "message": "관리 부담이 있는 선물이라 난도가 낮은 품종인지 확인하세요."
+    },
+    {
+      "id": "experience_schedule",
+      "level": "caution",
+      "penalty": 7,
+      "tags": ["experience"],
+      "relationships": ["colleague", "manager", "acquaintance"],
+      "situations": [],
+      "message": "일정을 함께 맞추기 어려운 관계에서는 사용이 미뤄질 수 있어요."
+    }
+  ]
+}

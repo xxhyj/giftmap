@@ -1,0 +1,9 @@
+{
+  "rulesetVersion": "2026-09-11.1",
+  "note": "판매처 이름을 포함하지 않는 일반 쇼핑 검색어 템플릿.",
+  "templates": [
+    "{relationship} {situation} {category}",
+    "{budget} {category} 선물세트",
+    "{preference} {category} 추천"
+  ]
+}
