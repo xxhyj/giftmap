@@ -39,6 +39,14 @@ class ProductCatalog {
   /// 원격(Supabase)에서 받아온 카탈로그인지.
   bool get isRemote => version == 'supabase';
 
+  /// 화면에 내보낼 상품.
+  ///
+  /// 품절이 확인된 상품은 홈·검색·카테고리·추천에서 뺀다. 행을 지우지는 않아
+  /// 찜·최근 본 상품에서는 [byId]로 그대로 찾을 수 있고 품절 표시가 붙는다.
+  late final List<Product> sellable = products
+      .where((Product p) => p.isSellable)
+      .toList(growable: false);
+
   bool get isEmpty => products.isEmpty;
 
   Product? byId(String id) {
@@ -52,9 +60,10 @@ class ProductCatalog {
       ids.map(byId).nonNulls.toList(growable: false);
 
   /// 카탈로그에 존재하는 카테고리 목록(라벨 기준 중복 제거).
+  /// 품절만 남은 카테고리는 고를 수 없으므로 보여 주지 않는다.
   List<({String id, String label})> get categories {
     final Map<String, String> found = <String, String>{};
-    for (final Product product in products) {
+    for (final Product product in sellable) {
       found.putIfAbsent(product.category, () => product.categoryLabel);
     }
     final List<({String id, String label})> list = found.entries
@@ -75,7 +84,7 @@ class ProductCatalog {
     ProductSort sort = ProductSort.recommended,
   }) {
     final String query = _normalize(rawQuery);
-    final List<Product> matched = products.where((Product product) {
+    final List<Product> matched = sellable.where((Product product) {
       if (category != null && product.category != category) return false;
       if (priceRange != null && !_inBand(product, priceRange)) return false;
       if (query.isEmpty) return true;
@@ -87,7 +96,7 @@ class ProductCatalog {
 
   /// 가격 구간으로 거른 목록. 가격을 모르는 상품은 제외한다.
   List<Product> byPriceUnder(int maxPrice, {int limit = 10}) {
-    final List<Product> matched = products
+    final List<Product> matched = sellable
         .where((Product p) => p.price != null && p.price! <= maxPrice)
         .toList();
     return interleave(_sorted(matched, ProductSort.recommended), limit: limit);
@@ -95,7 +104,7 @@ class ProductCatalog {
 
   /// 상황별 큐레이션.
   List<Product> byOccasion(GiftSituation situation, {int limit = 10}) {
-    final List<Product> matched = products
+    final List<Product> matched = sellable
         .where((Product p) => p.occasions.contains(situation))
         .toList();
     return interleave(_sorted(matched, ProductSort.recommended), limit: limit);
@@ -103,7 +112,7 @@ class ProductCatalog {
 
   /// 관계별 큐레이션.
   List<Product> byRecipient(RelationshipType relationship, {int limit = 10}) {
-    final List<Product> matched = products
+    final List<Product> matched = sellable
         .where((Product p) => p.recipientTypes.contains(relationship))
         .toList();
     return interleave(_sorted(matched, ProductSort.recommended), limit: limit);
@@ -112,7 +121,7 @@ class ProductCatalog {
   /// 할인 중인 상품.
   List<Product> get discounted => interleave(
     _sorted(
-      products.where((Product p) => p.hasDiscount).toList(),
+      sellable.where((Product p) => p.hasDiscount).toList(),
       ProductSort.discount,
     ),
     limit: 20,
@@ -121,12 +130,12 @@ class ProductCatalog {
   /// 홈의 "지금 많이 찾는 선물" 자리를 채우는 고정 목록.
   /// 랜덤을 쓰지 않아 실행할 때마다 같은 순서를 보여준다.
   List<Product> get popular {
-    List<Product> matched = products
+    List<Product> matched = sellable
         .where((Product p) => p.occasions.length >= 3)
         .toList();
     // 수집 상품은 상황 태그가 2개인 경우가 많다. 비어 보이지 않게 기준을 낮춘다.
     if (matched.length < 10) {
-      matched = products.where((Product p) => p.occasions.length >= 2).toList();
+      matched = sellable.where((Product p) => p.occasions.length >= 2).toList();
     }
     return interleave(_sorted(matched, ProductSort.recommended), limit: 12);
   }

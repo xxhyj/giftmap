@@ -12,6 +12,7 @@ import '../features/history/application/history_store.dart';
 import '../features/library/application/favorites_store.dart';
 import '../features/library/application/recently_viewed_store.dart';
 import '../features/products/domain/product_catalog.dart';
+import '../features/search/data/search_trend_service.dart';
 import 'app_shell.dart';
 
 /// 앱 전역 의존성 묶음. 상태관리 패키지 없이 InheritedWidget으로만 전달한다.
@@ -25,6 +26,7 @@ class AppDependencies {
     required this.analytics,
     required this.shellTab,
     required this.catalog,
+    required this.searchTrends,
     required this.productEngine,
     required this.favorites,
     required this.recentlyViewed,
@@ -44,6 +46,10 @@ class AppDependencies {
 
   /// 로컬 Mock 상품 카탈로그.
   final ProductCatalog catalog;
+
+  /// 검색어를 익명으로 집계하고 인기 검색어를 읽는다.
+  /// 연결이 없으면 아무것도 기록하지 않는 구현이 들어온다.
+  final SearchTrendService searchTrends;
 
   /// 조건에 맞는 상품을 점수화하는 결정론적 엔진.
   final ProductRecommendationEngine productEngine;

@@ -108,7 +108,7 @@ void main() {
     expect(first, second);
   });
 
-  test('품절이 확인된 상품은 목록 뒤로 밀린다', () {
+  test('품절이 확인된 상품은 목록에서 빠진다', () {
     final ProductCatalog catalog = ProductCatalog(
       products: <Product>[
         Product.fromJson(<String, Object?>{
@@ -138,9 +138,15 @@ void main() {
       disclaimer: '',
     );
 
-    // 싸고 커버리지가 넓어도 품절이면 뒤로 간다.
-    expect(catalog.search('', sort: ProductSort.priceLow).first.id, 'ok');
-    expect(catalog.search('').first.id, 'ok');
+    // 싸고 커버리지가 넓어도 품절이면 목록에 내보내지 않는다.
+    expect(catalog.search('').map((Product p) => p.id), <String>['ok']);
+    expect(catalog.sellable.map((Product p) => p.id), <String>['ok']);
+
+    // 지우지는 않는다. 찜·최근 본 상품에서 다시 찾을 수 있어야 한다.
+    expect(catalog.byId('sold'), isNotNull);
+    expect(catalog.byId('sold')!.isSoldOut, isTrue);
+    // 품절 상품은 사러 갈 수 없으므로 CTA 를 열지 않는다.
+    expect(catalog.byId('sold')!.canOpenStore, isFalse);
   });
 
   test('재고를 모르는 상품은 밀지 않는다', () {
@@ -168,7 +174,9 @@ void main() {
       disclaimer: '',
     );
 
+    // 재고를 모르는 상품은 그대로 목록에 남는다.
     expect(catalog.search('', sort: ProductSort.priceLow).first.id, 'unknown');
+    expect(catalog.sellable.length, 2);
   });
 
   test('상품이 적으면 있는 만큼만 돌려준다', () {

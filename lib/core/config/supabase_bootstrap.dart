@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/gift_finder/data/ai_recommendation_service.dart';
 import '../../features/products/data/bundled_product_data_source.dart';
+import '../../features/search/data/search_trend_service.dart';
 import '../../features/products/data/supabase_product_data_source.dart';
 import 'supabase_config.dart';
 
@@ -70,6 +71,12 @@ abstract final class SupabaseBootstrap {
   static AiRecommendationService? aiRecommendationService() {
     if (!_initialized) return null;
     return SupabaseAiRecommendationService(Supabase.instance.client);
+  }
+
+  /// 검색어 집계 서비스. 연결이 없으면 아무것도 남기지 않는다.
+  static SearchTrendService searchTrendService() {
+    if (!_initialized) return const NoopSearchTrendService();
+    return SupabaseSearchTrendService(Supabase.instance.client);
   }
 
   /// 테스트에서 상태를 초기화할 때 쓴다.

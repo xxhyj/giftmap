@@ -17,6 +17,7 @@ import 'package:giftmap/features/library/application/recently_viewed_store.dart'
 import 'package:giftmap/features/library/data/in_memory_id_list_storage.dart';
 import 'package:giftmap/features/products/domain/product.dart';
 import 'package:giftmap/features/products/domain/product_catalog.dart';
+import 'package:giftmap/features/search/data/search_trend_service.dart';
 
 import '../fixtures/ruleset_fixture.dart';
 
@@ -47,6 +48,7 @@ Widget wrapWithScope(Widget child, {List<Product>? products}) {
     analytics: AnalyticsRecorder(),
     shellTab: ShellTabController(),
     catalog: catalog,
+    searchTrends: const NoopSearchTrendService(),
     productEngine: ProductRecommendationEngine(
       catalog: catalog,
       ruleset: ruleset,

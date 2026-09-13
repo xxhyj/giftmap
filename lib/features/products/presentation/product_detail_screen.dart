@@ -298,10 +298,10 @@ class _DetailActionBar extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Text(
-              switch ((canOpenStore, product.isSoldOut)) {
-                (true, true) => '지금은 품절로 확인돼요. 판매처에서 다시 확인해 보세요.',
-                (true, false) => '판매처 페이지로 이동해요. 가격과 재고는 판매처 기준이에요.',
-                (false, _) => '데모 상품이라 실제 판매 페이지 연동은 준비 중이에요.',
+              switch ((product.isSoldOut, canOpenStore)) {
+                (true, _) => '지금은 품절이에요. 다시 들어오면 주문할 수 있어요.',
+                (false, true) => '판매처 페이지로 이동해요. 가격과 재고는 판매처 기준이에요.',
+                (false, false) => '데모 상품이라 실제 판매 페이지 연동은 준비 중이에요.',
               },
               style: Theme.of(context).textTheme.labelSmall,
               textAlign: TextAlign.center,
@@ -320,7 +320,7 @@ class _DetailActionBar extends StatelessWidget {
                 Expanded(
                   child: FilledButton(
                     onPressed: canOpenStore ? () => _openStore(context) : null,
-                    child: const Text('상품 보러 가기'),
+                    child: Text(product.isSoldOut ? '품절' : '상품 보러 가기'),
                   ),
                 ),
               ],

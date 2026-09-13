@@ -68,13 +68,14 @@ async function loadCandidates(intent: GiftIntent, limit = 60): Promise<Candidate
   const query = new URL(`${url}/rest/v1/products`);
   query.searchParams.set(
     'select',
-    'id,brand_name,product_name,price,category_id,tags,occasions,recipient_types,source',
+    'id,brand_name,product_name,price,category_id,tags,occasions,recipient_types,source,last_verified_at',
   );
   // 실제 상품만, 판매 중인 것만, 그리고 화면에 온전히 보여 줄 수 있는 것만 고른다.
   // 이미지·가격·판매 URL 중 하나라도 없으면 추천 후보로 쓰지 않는다.
   query.searchParams.set('is_demo', 'eq.false');
   query.searchParams.set('is_active', 'eq.true');
-  query.searchParams.append('in_stock', 'not.is.false');
+  // 품절이 확인된 상품은 추천하지 않는다(모르는 상품은 남긴다).
+  query.searchParams.append('availability', 'neq.out_of_stock');
   query.searchParams.append('image_url', 'not.is.null');
   query.searchParams.append('product_url', 'not.is.null');
   query.searchParams.append('price', 'not.is.null');
@@ -90,8 +91,10 @@ async function loadCandidates(intent: GiftIntent, limit = 60): Promise<Candidate
   if (intent.relationship) {
     query.searchParams.append('recipient_types', `cs.{${intent.relationship}}`);
   }
-  query.searchParams.set('order', 'id.asc');
-  query.searchParams.set('limit', String(limit));
+  // 최근에 확인한 상품을 먼저 본다. 오래된 것은 가격·재고가 달라졌을 수 있다.
+  query.searchParams.set('order', 'last_verified_at.desc.nullslast,id.asc');
+  // 한 공급원이 후보를 독점하지 않도록 넉넉히 받아 두고 아래에서 섞는다.
+  query.searchParams.set('limit', String(limit * 5));
 
   const res = await fetch(query, {
     headers: { apikey: key, authorization: `Bearer ${key}` },
@@ -99,7 +102,7 @@ async function loadCandidates(intent: GiftIntent, limit = 60): Promise<Candidate
   if (!res.ok) throw new Error(`상품 조회 실패: ${res.status}`);
 
   const rows = await res.json();
-  return (rows as Record<string, unknown>[]).map((row) => ({
+  const mapped = (rows as Record<string, unknown>[]).map((row) => ({
     id: String(row.id),
     brand: (row.brand_name as string) ?? null,
     name: String(row.product_name),
@@ -110,6 +113,37 @@ async function loadCandidates(intent: GiftIntent, limit = 60): Promise<Candidate
     recipients: (row.recipient_types as string[]) ?? [],
     source: String(row.source ?? ''),
   }));
+
+  return mixSources(mapped, limit);
+}
+
+/**
+ * 공급원을 번갈아 뽑는다.
+ *
+ * 최근 확인 순으로만 받으면 마지막에 수집한 공급원이 후보를 다 차지해
+ * 추천이 한 곳 상품으로만 채워진다. 앱 홈과 같은 생각이다.
+ */
+function mixSources(items: Candidate[], limit: number): Candidate[] {
+  const bySource = new Map<string, Candidate[]>();
+  for (const item of items) {
+    const key = item.source || 'unknown';
+    if (!bySource.has(key)) bySource.set(key, []);
+    bySource.get(key)!.push(item);
+  }
+  const lines = [...bySource.keys()].sort().map((key) => bySource.get(key)!);
+
+  const out: Candidate[] = [];
+  for (let round = 0; out.length < limit; round += 1) {
+    let took = false;
+    for (const line of lines) {
+      if (round >= line.length) continue;
+      out.push(line[round]);
+      took = true;
+      if (out.length >= limit) break;
+    }
+    if (!took) break;
+  }
+  return out;
 }
 
 /** 후보 중에서만 고르게 하는 프롬프트. 새 상품을 만들 여지를 주지 않는다. */

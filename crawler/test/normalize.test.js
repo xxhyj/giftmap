@@ -285,3 +285,64 @@ test('앞서 저장한 상품은 다음 묶음에서 다시 만들지 않는다'
   assert.equal(second.offers[0].product_id, '10x10-1');
   assert.equal(second.offers[0].source, '29cm');
 });
+
+test('검색어 힌트가 상품명을 이기지 않는다', () => {
+  // "향수"로 검색하면 바디로션·훈증기 같은 것이 딸려 온다.
+  // 힌트를 상품명보다 먼저 쓰면 이런 것들이 향수로 들어간다.
+  const row = (name, hint) =>
+    toProductRow(
+      { name, productUrl: `https://example.test/${encodeURIComponent(name)}`, sku: name, price: 1000 },
+      { ...context, categoryHint: hint },
+    );
+
+  assert.equal(row('샤넬 5 레뮐지옹 바디 로션 200ml', 'perfume').category_id, 'body_care');
+  assert.equal(row('오리지날 샌드위치 와플메이커', 'dessert').category_id, 'appliance');
+  assert.equal(row('욜로브 캠핑 법랑컵 350ml', 'tea_coffee').category_id, 'tumbler');
+  assert.equal(row('모노 트라우져 삭스 화이트', 'beauty').category_id, 'fashion_accessory');
+
+  // 상품명이 분류를 말해 주지 않을 때만 힌트를 쓴다.
+  assert.equal(row('이름만으로는 알 수 없는 물건', 'perfume').category_id, 'perfume');
+});
+
+test('한 글자 낱말이 다른 단어에 묻혀 오분류되지 않는다', () => {
+  // '립' 이 '플립' 안에 들어 있어 신발이 뷰티로 분류되던 문제.
+  assert.equal(guessCategory('여아 키즈 구두 플립 신발'), 'shoes');
+  assert.equal(guessCategory('맥 립스틱 루비우'), 'beauty');
+});
+
+test('사람에게 주는 선물이 아닌 상품은 카탈로그에 넣지 않는다', () => {
+  const pet = toProductRow(
+    {
+      name: '고양이 페로몬 펠리웨이 호환 훈증기',
+      productUrl: 'https://example.test/pet',
+      sku: 'pet',
+      price: 20000,
+    },
+    { ...context, categoryHint: 'perfume' },
+  );
+  assert.equal(pet, null);
+});
+
+test('재고 상태와 확인 시각을 함께 남긴다', () => {
+  const row = toProductRow(
+    {
+      name: '품절된 상품',
+      productUrl: 'https://example.test/x',
+      sku: 'x',
+      price: 1000,
+      availability: 'https://schema.org/OutOfStock',
+    },
+    context,
+  );
+  assert.equal(row.availability, 'out_of_stock');
+  assert.equal(row.in_stock, false);
+  assert.equal(row.last_verified_at, context.collectedAt);
+
+  const unknown = toProductRow(
+    { name: '재고 모름', productUrl: 'https://example.test/y', sku: 'y', price: 1000 },
+    context,
+  );
+  // 알려 주지 않으면 품절로 단정하지 않는다.
+  assert.equal(unknown.availability, 'unknown');
+  assert.equal(unknown.in_stock, null);
+});

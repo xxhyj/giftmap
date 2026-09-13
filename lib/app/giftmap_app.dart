@@ -23,6 +23,7 @@ import '../features/library/data/prefs_id_list_storage.dart';
 import '../features/library/domain/id_list_storage.dart';
 import '../features/products/data/bundled_product_data_source.dart';
 import '../features/products/domain/product_catalog.dart';
+import '../features/search/data/search_trend_service.dart';
 import '../features/splash/presentation/load_failure_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
 import 'app_scope.dart';
@@ -34,6 +35,7 @@ class GiftmapApp extends StatefulWidget {
     this.productDataSource,
     this.storage,
     this.aiService,
+    this.searchTrends,
     super.key,
   });
 
@@ -51,6 +53,9 @@ class GiftmapApp extends StatefulWidget {
 
   /// 서버 추천 서비스. 주지 않으면 Supabase 연결 여부에 따라 정해진다.
   final AiRecommendationService? aiService;
+
+  /// 검색어 집계 서비스. 주지 않으면 Supabase 연결 여부에 따라 정해진다.
+  final SearchTrendService? searchTrends;
 
   @override
   State<GiftmapApp> createState() => _GiftmapAppState();
@@ -140,6 +145,8 @@ class _GiftmapAppState extends State<GiftmapApp> {
       analytics: analytics,
       shellTab: ShellTabController(),
       catalog: catalog,
+      searchTrends:
+          widget.searchTrends ?? SupabaseBootstrap.searchTrendService(),
       productEngine: productEngine,
       favorites: favorites,
       recentlyViewed: recentlyViewed,

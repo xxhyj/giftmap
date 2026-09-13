@@ -24,7 +24,7 @@ final class SupabaseProductDataSource implements ProductDataSource {
   static const String _productColumns = '''
 id, brand_name, product_name, category_id, sub_category,
 price, original_price, discount_rate, image_asset, image_url, product_url,
-in_stock, source,
+in_stock, availability, last_verified_at, source,
 tags, occasions, recipient_types, gender_target, age_range,
 price_range, recommendation_keywords, description,
 recommendation_reason, is_demo, sort_order, created_at
@@ -113,6 +113,8 @@ recommendation_reason, is_demo, sort_order, created_at
       'imageAsset': row['image_asset'],
       'imageUrl': row['image_url'],
       'inStock': row['in_stock'],
+      'availability': row['availability'],
+      'lastVerifiedAt': row['last_verified_at'],
       'source': row['source'],
       'productUrl': row['product_url'],
       'tags': _stringList(row['tags']),

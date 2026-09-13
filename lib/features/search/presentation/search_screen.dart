@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../app/app_scope.dart';
@@ -14,6 +16,7 @@ import '../../products/domain/product_catalog.dart';
 import '../../products/presentation/product_detail_screen.dart';
 import '../../products/presentation/widgets/product_collections.dart';
 import '../../products/presentation/widgets/paged_product_grid.dart';
+import '../data/search_trend_service.dart';
 
 /// 로컬 카탈로그를 검색하는 화면. 네트워크 요청은 없다.
 class SearchScreen extends StatefulWidget {
@@ -35,6 +38,9 @@ class _SearchScreenState extends State<SearchScreen> {
   ProductSort _sort = ProductSort.recommended;
   bool _searching = false;
 
+  /// 집계로 얻은 검색어와 그 출처. 못 얻으면 아래 기본값을 쓴다.
+  SearchTrendResult? _trends;
+
   /// 카탈로그(원격 또는 번들)가 추천 검색어를 주지 않을 때 쓰는 기본값.
   static const List<String> _defaultSuggestions = <String>[
     '집들이 선물',
@@ -51,6 +57,28 @@ class _SearchScreenState extends State<SearchScreen> {
     _query = widget.initialQuery?.trim() ?? '';
   }
 
+  bool _loadedTrends = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_loadedTrends) return;
+    _loadedTrends = true;
+    _loadTrends();
+  }
+
+  /// 인기 검색어를 불러온다. 실패하거나 기록이 모자라면 추천 검색어로 남는다.
+  Future<void> _loadTrends() async {
+    final AppDependencies deps = AppScope.of(context);
+    final List<String> fallback = deps.catalog.searchSuggestions.isEmpty
+        ? _defaultSuggestions
+        : deps.catalog.searchSuggestions;
+    final SearchTrendResult result = await deps.searchTrends.topKeywords(
+      fallback: fallback,
+    );
+    if (mounted) setState(() => _trends = result);
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -59,7 +87,10 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Future<void> _submit(String raw) async {
     final String query = raw.trim();
-    // 검색 키워드는 저장하지 않는다(검색 기록 미수집).
+    // 검색어는 익명으로만 집계한다. 누가 검색했는지는 남기지 않는다.
+    if (query.isNotEmpty) {
+      unawaited(AppScope.of(context).searchTrends.recordSearch(query));
+    }
     setState(() {
       _query = query;
       _searching = true;
@@ -70,6 +101,10 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   void _openProduct(Product product) {
+    // 어떤 검색어에서 상품을 열었는지도 익명으로 센다(인기 검색어 계산에 쓴다).
+    if (_query.isNotEmpty) {
+      unawaited(AppScope.of(context).searchTrends.recordClick(_query));
+    }
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (BuildContext context) =>
@@ -82,9 +117,15 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     final AppDependencies deps = AppScope.of(context);
     final ProductCatalog catalog = deps.catalog;
-    final List<String> suggestions = catalog.searchSuggestions.isEmpty
-        ? _defaultSuggestions
-        : catalog.searchSuggestions;
+    final SearchTrendResult trends =
+        _trends ??
+        SearchTrendResult(
+          keywords: catalog.searchSuggestions.isEmpty
+              ? _defaultSuggestions
+              : catalog.searchSuggestions,
+          source: SearchTrendSource.curated,
+        );
+    final List<String> suggestions = trends.keywords;
     final bool hasQuery = _query.isNotEmpty;
     final List<Product> results = catalog.search(
       _query,
@@ -126,7 +167,8 @@ class _SearchScreenState extends State<SearchScreen> {
           padding: const EdgeInsets.only(bottom: AppSpacing.bottomAction),
           children: <Widget>[
             if (!hasQuery) ...<Widget>[
-              const _Padded(child: SectionHeader(title: '추천 검색어')),
+              // 기록이 모자라면 "인기"라고 부르지 않는다.
+              _Padded(child: SectionHeader(title: trends.source.label)),
               _Padded(
                 child: _SuggestionPills(
                   suggestions: suggestions,

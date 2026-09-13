@@ -47,6 +47,64 @@ async function check(url, { expectImage = false } = {}) {
   }
 }
 
+/**
+ * 저장된 상품 전체를 훑어 값 자체가 잘못된 것을 센다.
+ * 네트워크를 쓰지 않으므로 전수로 볼 수 있다.
+ */
+async function auditAll(client) {
+  const pageSize = 1000;
+  const rows = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await client
+      .from('products')
+      .select('id, product_name, price, image_url, product_url, availability, dedupe_key, last_verified_at')
+      .eq('is_demo', false)
+      .eq('is_active', true)
+      .order('id')
+      .range(from, from + pageSize - 1);
+    if (error) throw new Error(error.message);
+    rows.push(...(data ?? []));
+    if ((data?.length ?? 0) < pageSize) break;
+  }
+
+  const badUrl = (url) => {
+    if (!url) return true;
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol !== 'https:' && parsed.protocol !== 'http:';
+    } catch {
+      return true;
+    }
+  };
+
+  const noImage = rows.filter((row) => badUrl(row.image_url));
+  const noLink = rows.filter((row) => badUrl(row.product_url));
+  const noPrice = rows.filter((row) => row.price === null || row.price <= 0);
+  const soldOut = rows.filter((row) => row.availability === 'out_of_stock');
+
+  const seen = new Map();
+  const dupes = [];
+  for (const row of rows) {
+    if (!row.dedupe_key) continue;
+    if (seen.has(row.dedupe_key)) dupes.push(row);
+    else seen.set(row.dedupe_key, row.id);
+  }
+
+  const old = rows.filter((row) => {
+    if (!row.last_verified_at) return true;
+    return Date.now() - Date.parse(row.last_verified_at) > 14 * 24 * 3600 * 1000;
+  });
+
+  console.log(`전수 검사 (실제 상품 ${rows.length}건)`);
+  console.log(`  이미지 URL 없음/형식 오류 : ${noImage.length}`);
+  console.log(`  상품 URL 없음/형식 오류   : ${noLink.length}`);
+  console.log(`  가격 없음/0 이하          : ${noPrice.length}`);
+  console.log(`  중복(dedupe_key 겹침)     : ${dupes.length}`);
+  console.log(`  품절(목록에서 제외됨)     : ${soldOut.length}`);
+  console.log(`  14일 넘게 미확인          : ${old.length}
+`);
+}
+
 async function main() {
   loadDotEnv();
   const perSource = Number(
@@ -77,6 +135,9 @@ async function main() {
   const ids = [...new Set((sources ?? []).map((row) => row.source))].sort();
   let totalOk = 0;
   let totalChecked = 0;
+
+  // 먼저 전수 검사: 표본을 열어 보지 않아도 DB 만으로 알 수 있는 문제들.
+  await auditAll(client);
 
   for (const source of ids) {
     const { data: rows } = await client

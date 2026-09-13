@@ -82,7 +82,8 @@ class ProductRecommendationEngine {
     final Map<String, int> bonuses = _directionBonuses(directions);
 
     final List<ProductPick> picks = <ProductPick>[];
-    for (final Product product in catalog.products) {
+    // 품절이 확인된 상품은 추천하지 않는다.
+    for (final Product product in catalog.sellable) {
       final ProductPick? pick = evaluate(
         intent,
         product,
@@ -139,6 +140,8 @@ class ProductRecommendationEngine {
     score += preferencePoints;
     score += ageMatch ? 5 : 0;
     score += directionBonus;
+    // 마지막 확인이 오래된 상품은 가격·재고가 달라졌을 수 있어 뒤로 보낸다.
+    score -= product.isStale() ? 8 : 0;
     score -= _riskPenalty(matched);
 
     return ProductPick(
@@ -223,7 +226,7 @@ class ProductRecommendationEngine {
     final Set<String> taken = picks
         .map((ProductPick p) => p.product.id)
         .toSet();
-    final List<Product> extras = catalog.products
+    final List<Product> extras = catalog.sellable
         .where((Product p) => !taken.contains(p.id))
         .where((Product p) => !p.tags.any(intent.avoidTags.contains))
         .toList();

@@ -9,23 +9,34 @@
 
 /** 카테고리 추정에 쓰는 키워드 표. 앞에 있는 규칙이 이긴다. */
 const CATEGORY_RULES = [
+  // 조리·가전 기기는 '와플', '커피' 같은 낱말 때문에 식품으로 새기 쉬워 먼저 본다.
+  [
+    'appliance',
+    [
+      '메이커', '토스터', '전기포트', '커피머신', '가습기', '제습기', '선풍기',
+      '청소기', '드라이어', '스피커', '이어폰', '충전기', '보조배터리', '램프',
+      '무드등', '조명', '에어프라이어', '전기밥솥', '믹서', '블렌더',
+    ],
+  ],
   ['perfume', ['향수', '퍼퓸', '오드', 'perfume', '코롱']],
   ['candle', ['캔들', '디퓨저', '인센스', '룸스프레이', 'candle']],
   ['hand_care', ['핸드크림', '핸드워시', '핸드케어', '핸드밤']],
   ['body_care', ['바디', '입욕', '보디', '샤워', '배스']],
-  ['beauty', ['뷰티', '립', '스킨케어', '화장품', '마스크팩', '세럼']],
-  ['tea_coffee', ['티백', '홍차', '녹차', '커피', '원두', '드립', '티팟', '찻잔']],
-  ['dessert', ['쿠키', '초콜릿', '초콜렛', '디저트', '케이크', '마카롱', '수제잼', '푸딩']],
-  ['tumbler', ['텀블러', '보온병', '머그', '물병', '보틀']],
+  // 한두 글자 낱말은 다른 단어 안에 묻혀 오분류를 만든다(예: '립' ⊂ '플립').
+  // 반드시 두 글자 이상, 가능하면 그 분야에서만 쓰는 낱말을 쓴다.
+  ['beauty', ['뷰티', '립스틱', '립밤', '립글로스', '틴트', '스킨케어', '화장품', '마스크팩', '세럼', '쿠션팩트', '파운데이션', '선크림']],
+  ['tea_coffee', ['티백', '홍차', '녹차', '커피', '원두', '드립', '티팟', '찻잔', '다기', '다도']],
+  ['dessert', ['쿠키', '초콜릿', '초콜렛', '디저트', '마카롱', '수제잼', '푸딩', '젤리', '캔디']],
+  ['tumbler', ['텀블러', '보온병', '머그', '물병', '보틀', '법랑컵', '캠핑컵']],
   ['stationery', ['노트', '다이어리', '펜', '문구', '캘린더', '달력', '스티커', '메모']],
   ['desk', ['데스크', '오거나이저', '연필꽂이', '마우스패드', '조명', '램프']],
-  ['homewear', ['잠옷', '파자마', '홈웨어', '가운', '슬리퍼']],
+  ['homewear', ['잠옷', '파자마', '홈웨어', '가운', '수면양말', '속옷', '언더웨어']],
   ['wallet', ['지갑', '카드지갑', '카드케이스', '머니클립']],
   ['shoes', ['운동화', '스니커즈', '구두', '샌들', '부츠', '슬리퍼', '로퍼']],
   ['bag', ['가방', '백팩', '숄더백', '토트백', '크로스백', '파우치', '지갑가방']],
-  ['fashion_accessory', ['목걸이', '팔찌', '귀걸이', '반지', '스카프', '머플러', '키링', '시계', '모자', '벨트']],
+  ['fashion_accessory', ['목걸이', '팔찌', '귀걸이', '반지', '스카프', '머플러', '키링', '시계', '모자', '벨트', '양말', '삭스']],
   ['fashion_clothing', ['티셔츠', '맨투맨', '후드', '니트', '셔츠', '코트', '자켓', '재킷', '블루종', '패딩', '바지', '팬츠', '청바지', '원피스', '스커트', '롱슬리브', '스웨트', '카디건', '점퍼']],
-  ['book', ['도서', '책', '소설', '에세이', '시집', '문고', '전집']],
+  ['book', ['도서', '소설', '에세이', '시집', '문고본', '전집', '베스트셀러']],
   ['music', ['음반', 'cd', 'lp', '앨범', '바이닐']],
   ['living', ['수건', '타월', '쿠션', '담요', '블랭킷', '식기', '컵', '그릇', '주방']],
   ['hobby', ['퍼즐', '보드게임', '키트', '취미', '엽서', '포스터', '피규어']],
@@ -79,6 +90,14 @@ export function readStock(availability) {
   return null;
 }
 
+/** 재고 상태 문자열. 모르면 'unknown' 이며 품절로 단정하지 않는다. */
+export function readAvailability(availability) {
+  const stock = readStock(availability);
+  if (stock === true) return 'in_stock';
+  if (stock === false) return 'out_of_stock';
+  return 'unknown';
+}
+
 /**
  * 공급원이 달라도 같은 상품이면 같은 값이 나오는 키.
  *
@@ -113,10 +132,30 @@ export function priceBand(price) {
   return 'over100k';
 }
 
+/**
+ * 낱말이 상품 글에 들어 있는지 본다.
+ *
+ * 짧은 낱말은 다른 단어 안에 묻혀 엉뚱한 분류를 만든다
+ * (예: '코트' ⊂ '니코트', '책' ⊂ '책상', '립' ⊂ '플립').
+ * 그래서 두 글자 이하 낱말은 단어가 시작되는 자리에서만 인정한다.
+ * 한글에는 띄어쓰기가 일정하지 않아, 앞이 한글이 아닌 자리를 경계로 본다.
+ */
+function hasWord(text, word) {
+  if (word.length > 2) return text.includes(word);
+  let from = 0;
+  for (;;) {
+    const at = text.indexOf(word, from);
+    if (at < 0) return false;
+    const before = at === 0 ? '' : text[at - 1];
+    if (!/[0-9a-z가-힣]/.test(before)) return true;
+    from = at + 1;
+  }
+}
+
 export function guessCategory(haystack, fallback = DEFAULT_CATEGORY) {
   const text = (haystack || '').toLowerCase();
   for (const [id, keywords] of CATEGORY_RULES) {
-    if (keywords.some((word) => text.includes(word.toLowerCase()))) return id;
+    if (keywords.some((word) => hasWord(text, word.toLowerCase()))) return id;
   }
   return fallback;
 }
@@ -132,10 +171,22 @@ function guessTags(haystack) {
  * 수집 결과 하나를 `products` 행으로 만든다.
  * 필수값(상품명·상품 URL)이 없으면 null 을 돌려주고 호출자가 건너뛴다.
  */
+/**
+ * 사람에게 주는 선물이 아니어서 카탈로그에 넣지 않는 상품.
+ * 반려동물 용품은 분류 규칙에 걸리지 않아 엉뚱한 분류로 새기도 한다.
+ */
+const NOT_A_GIFT = [
+  '강아지', '고양이', '반려견', '반려묘', '반려동물', '캣타워', '스크래쳐',
+  '노즈워크', '사료', '펠리웨이', '캣닢', '캣닙',
+];
+
 export function toProductRow(raw, { sourceId, sourceLabel, collectedAt, categoryHint }) {
   const name = clean(raw.name);
   const productUrl = clean(raw.productUrl);
   if (!name || !productUrl) return null;
+
+  const petText = `${name} ${(raw.breadcrumb ?? []).join(' ')}`.toLowerCase();
+  if (NOT_A_GIFT.some((word) => petText.includes(word))) return null;
 
   const sourceProductId = clean(raw.sku) ?? hashId(productUrl);
   const price = positive(raw.price);
@@ -145,12 +196,16 @@ export function toProductRow(raw, { sourceId, sourceLabel, collectedAt, category
   // (브랜드명이 상품 성격과 무관한 경우가 많다. 예: "잼몬스터" 마우스패드)
   const breadcrumb = (raw.breadcrumb ?? []).filter(Boolean).join(' ');
   const haystack = [breadcrumb, name, ...(raw.keywords ?? [])].filter(Boolean).join(' ');
-  // 공급원이 붙인 분류(breadcrumb)를 가장 믿고,
-  // 없으면 어댑터가 목록에서 넘긴 힌트, 그다음 상품명·키워드 순으로 본다.
+  // 공급원이 붙인 분류(breadcrumb) → 상품명·키워드 → 검색어 힌트 순으로 본다.
+  //
+  // 검색어 힌트를 상품명보다 먼저 쓰면 "향수" 검색에 딸려 온 바디로션이 향수로,
+  // "디저트" 검색에 딸려 온 와플메이커가 디저트로 들어간다. 힌트는 상품 자체가
+  // 아무것도 말해 주지 않을 때만 쓴다.
   const category =
     guessCategory(breadcrumb, null) ??
+    guessCategory(haystack, null) ??
     categoryHint ??
-    guessCategory(haystack);
+    DEFAULT_CATEGORY;
   const context = CATEGORY_CONTEXT[category] ?? CATEGORY_CONTEXT[DEFAULT_CATEGORY];
 
   return {
@@ -177,6 +232,9 @@ export function toProductRow(raw, { sourceId, sourceLabel, collectedAt, category
     description: shortDescription(raw.description),
     recommendation_reason: `${sourceLabel}에서 공개된 정보를 그대로 옮긴 실제 판매 상품이에요.`,
     in_stock: readStock(raw.availability),
+    availability: readAvailability(raw.availability),
+    // 이 값을 읽은 시각. 오래된 상품은 앱이 추천 우선순위를 낮춘다.
+    last_verified_at: collectedAt,
     dedupe_key: dedupeKey(raw.brand, name),
     is_demo: false,
     is_active: true,

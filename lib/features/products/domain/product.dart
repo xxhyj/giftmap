@@ -1,5 +1,26 @@
 import '../../gift_finder/domain/gift_intent.dart';
 
+/// 공급원이 알려준 재고 상태.
+///
+/// 모를 때 품절로 단정하지 않기 위해 [unknown]을 따로 둔다.
+enum ProductAvailability {
+  inStock('in_stock', '판매 중'),
+  outOfStock('out_of_stock', '품절'),
+  unknown('unknown', '재고 미확인');
+
+  const ProductAvailability(this.wireName, this.label);
+
+  final String wireName;
+  final String label;
+
+  static ProductAvailability fromWire(String? value) {
+    for (final ProductAvailability item in ProductAvailability.values) {
+      if (item.wireName == value) return item;
+    }
+    return ProductAvailability.unknown;
+  }
+}
+
 /// 카탈로그의 상품 한 건.
 ///
 /// 두 종류가 섞여 있다.
@@ -34,6 +55,8 @@ class Product {
     this.isDemo = true,
     this.inStock,
     this.source,
+    this.availability = ProductAvailability.unknown,
+    this.lastVerifiedAt,
   });
 
   final String id;
@@ -86,13 +109,31 @@ class Product {
   /// 재고 여부. null이면 공급원이 알려주지 않은 것이며 품절로 단정하지 않는다.
   final bool? inStock;
 
+  /// 재고 상태. 공급원이 알려주지 않으면 [ProductAvailability.unknown]이다.
+  final ProductAvailability availability;
+
+  /// 공급원 페이지에서 마지막으로 확인한 시각.
+  /// 오래된 상품은 추천에서 뒤로 밀린다.
+  final DateTime? lastVerifiedAt;
+
   /// 어느 공급원에서 수집했는지(예: `10x10`). 데모 상품은 null이다.
   final String? source;
 
   final DateTime createdAt;
 
   /// 품절이 확인된 상품인지. 모르면 false다(품절로 단정하지 않는다).
-  bool get isSoldOut => inStock == false;
+  bool get isSoldOut => availability == ProductAvailability.outOfStock;
+
+  /// 목록·추천에 내보내도 되는 상품인지.
+  /// 품절이 확인된 상품은 기본으로 뺀다(찜·최근 본 상품에서는 그대로 보여 준다).
+  bool get isSellable => !isSoldOut;
+
+  /// 마지막 확인이 오래됐는지. 추천 우선순위를 낮추는 데 쓴다.
+  bool isStale({Duration after = const Duration(days: 14), DateTime? now}) {
+    final DateTime? verified = lastVerifiedAt;
+    if (verified == null) return true;
+    return (now ?? DateTime.now()).difference(verified) > after;
+  }
 
   /// 사용자에게 보여줄 공급원 이름.
   String? get sourceLabel => switch (source) {
@@ -104,8 +145,11 @@ class Product {
   };
 
   /// 실제 판매 페이지로 이동할 수 있는 상품인지.
-  /// 데모 상품에는 판매 페이지가 없으므로 CTA를 활성화하지 않는다.
-  bool get canOpenStore => !isDemo && (productUrl?.isNotEmpty ?? false);
+  ///
+  /// 데모 상품에는 판매 페이지가 없고, 품절이 확인된 상품은 사러 가도 살 수 없어
+  /// CTA를 활성화하지 않는다(찜·최근 본 상품에서 만나는 경우다).
+  bool get canOpenStore =>
+      !isDemo && !isSoldOut && (productUrl?.isNotEmpty ?? false);
 
   bool get hasPrice => price != null;
 
@@ -187,9 +231,23 @@ class Product {
       isDemo: json['isDemo'] != false,
       inStock: json['inStock'] is bool ? json['inStock']! as bool : null,
       source: _str(json['source']),
+      // availability 가 없으면 inStock 으로 유추한다.
+      // 예전에 저장된 데이터와 재고를 boolean 으로만 주는 입력을 함께 받기 위해서다.
+      availability: _availabilityOf(json),
+      lastVerifiedAt: DateTime.tryParse(_str(json['lastVerifiedAt']) ?? ''),
       createdAt:
           DateTime.tryParse(_str(json['createdAt']) ?? '') ?? DateTime(2026),
     );
+  }
+
+  static ProductAvailability _availabilityOf(Map<String, Object?> json) {
+    final String? wire = _str(json['availability']);
+    if (wire != null) return ProductAvailability.fromWire(wire);
+    return switch (json['inStock']) {
+      true => ProductAvailability.inStock,
+      false => ProductAvailability.outOfStock,
+      _ => ProductAvailability.unknown,
+    };
   }
 
   static BudgetBand _bandForPrice(int? price) {
