@@ -64,3 +64,39 @@ export async function upsertProducts(client, rows, { categoryLabels = {} } = {})
   }
   return { inserted: rows.length };
 }
+
+/**
+ * 판매처별 가격·URL 을 저장한다.
+ *
+ * `products` 에 실제로 올라간 상품의 offer 만 남긴다.
+ * 아직 DB 에 없는 상품을 가리키는 offer 는 외래 키에 걸리므로 버린다.
+ */
+export async function upsertOffers(client, offers, productRows) {
+  if (!offers || offers.length === 0) return 0;
+
+  const knownIds = new Set(productRows.map((row) => row.id));
+  // 같은 (상품, 판매처) 는 한 번만 보낸다. 가장 싼 것을 남긴다.
+  const byKey = new Map();
+  for (const offer of offers) {
+    if (!knownIds.has(offer.product_id) || !offer.source || !offer.source_url) continue;
+    const key = `${offer.product_id}|${offer.source}`;
+    const seen = byKey.get(key);
+    if (!seen || (offer.price !== null && (seen.price === null || offer.price < seen.price))) {
+      byKey.set(key, offer);
+    }
+  }
+
+  const rows = [...byKey.values()];
+  const chunkSize = 200;
+  for (let from = 0; from < rows.length; from += chunkSize) {
+    const { error } = await client
+      .from('product_offers')
+      .upsert(rows.slice(from, from + chunkSize), { onConflict: 'product_id,source' });
+    // offer 는 부가 정보다. 실패해도 상품 자체는 이미 저장됐으므로 멈추지 않는다.
+    if (error) {
+      console.warn(`판매처 저장 실패(상품은 저장됨): ${error.message}`);
+      return 0;
+    }
+  }
+  return rows.length;
+}

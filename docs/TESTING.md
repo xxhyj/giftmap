@@ -218,6 +218,11 @@ node src/index.js --source 10x10 --limit 5 --dry-run   # 실제 공급원에서 
 - 이 테스트들은 네트워크를 쓰지 않는다. `--dart-define` 값이 없으므로
   `flutter test`는 항상 데모 모드(번들 데이터)로 돈다.
 
+## 11-4. 홈 구성 검증
+
+- `test/features/products/catalog_mix_test.dart`: 한 출처·분류가 홈을 뒤덮지 않는지,
+  같은 카탈로그면 항상 같은 순서가 나오는지.
+
 ## 12. 수동 확인 (에뮬레이터)
 
 자동 검증 후 Android API 24 에뮬레이터에서 다음을 확인한다.

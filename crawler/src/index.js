@@ -25,6 +25,7 @@ import {
   createServiceClient,
   loadDedupeKeys,
   readEnvCredentials,
+  upsertOffers,
   upsertProducts,
 } from './supabase.js';
 
@@ -199,11 +200,27 @@ async function collectFromAdapter(adapter, page, args) {
  * 고르는 순서는 (1) 가격을 아는 것 (2) 품절이 아닌 것 (3) 싼 것이고,
  * 모두 같으면 id 가 작은 것을 골라 실행할 때마다 결과가 같게 한다.
  * `known` 은 이미 DB 에 있는 중복키 → 상품 id 지도다.
+ *
+ * 중복으로 빠진 판매처도 버리지 않는다. 판매처별 URL·가격을 `offers` 로 모아
+ * `product_offers` 에 남기므로 "어디서 얼마에 파는지"를 잃지 않는다.
  */
 export function mergeDuplicates(rows, known = new Map()) {
   const byKey = new Map();
   const merged = [];
+  const offers = [];
   let dropped = 0;
+
+  /** 이 행이 어떤 상품의 판매처인지 기록한다. */
+  const addOffer = (productId, row) => {
+    offers.push({
+      product_id: productId,
+      source: row.source,
+      source_url: row.source_url,
+      price: row.price,
+      in_stock: row.in_stock,
+      collected_at: row.collected_at,
+    });
+  };
 
   const better = (a, b) => {
     if ((a.price === null) !== (b.price === null)) return a.price !== null;
@@ -216,18 +233,22 @@ export function mergeDuplicates(rows, known = new Map()) {
     const key = row.dedupe_key;
     if (!key) {
       merged.push(row);
+      addOffer(row.id, row);
       continue;
     }
     // 이미 DB 에 같은 상품이 다른 id 로 있으면 새로 만들지 않는다.
+    // 다만 이 판매처의 가격·URL 은 offer 로 남긴다.
     const existingId = known.get(key);
     if (existingId && existingId !== row.id) {
       dropped += 1;
+      addOffer(existingId, row);
       continue;
     }
     const seen = byKey.get(key);
     if (!seen) {
       byKey.set(key, row);
       merged.push(row);
+      addOffer(row.id, row);
       continue;
     }
     dropped += 1;
@@ -235,9 +256,21 @@ export function mergeDuplicates(rows, known = new Map()) {
       merged[merged.indexOf(seen)] = row;
       byKey.set(key, row);
     }
+    // 대표가 누가 되든 두 판매처 모두 대표 상품에 매단다.
+    addOffer(byKey.get(key).id, row);
   }
 
-  return { merged, dropped };
+  // 대표가 바뀌었을 수 있으므로 offer 의 product_id 를 최종 대표로 맞춘다.
+  const finalIdByKey = new Map(
+    [...byKey.entries()].map(([key, row]) => [key, row.id]),
+  );
+  const keyById = new Map(rows.map((row) => [row.id, row.dedupe_key]));
+  for (const offer of offers) {
+    const key = keyById.get(offer.product_id);
+    if (key && finalIdByKey.has(key)) offer.product_id = finalIdByKey.get(key);
+  }
+
+  return { merged, dropped, offers };
 }
 
 async function main() {
@@ -286,7 +319,7 @@ async function main() {
 
   // 이미 DB 에 있는 상품과도 중복을 맞춘다.
   const known = client && !args.dryRun ? await loadDedupeKeys(client) : new Map();
-  const { merged, dropped } = mergeDuplicates(rows, known);
+  const { merged, dropped, offers } = mergeDuplicates(rows, known);
 
   const outDir = path.join(ROOT, 'out');
   await mkdir(outDir, { recursive: true });
@@ -294,7 +327,7 @@ async function main() {
   await writeFile(
     outFile,
     JSON.stringify(
-      { finishedAt: new Date().toISOString(), bySource, rows: merged, skipped },
+      { finishedAt: new Date().toISOString(), bySource, rows: merged, offers, skipped },
       null,
       2,
     ),
@@ -324,6 +357,8 @@ async function main() {
   try {
     const { inserted } = await upsertProducts(client, merged);
     console.log(`Supabase upsert 완료: ${inserted}건 (is_demo = false)`);
+    const offerCount = await upsertOffers(client, offers, merged);
+    console.log(`판매처(offer) 저장: ${offerCount}건`);
   } catch (error) {
     console.error(`Supabase 업로드 실패: ${error.message}`);
     console.error('DB 의 기존 상품은 그대로입니다.');

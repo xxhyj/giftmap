@@ -90,7 +90,7 @@ class ProductCatalog {
     final List<Product> matched = products
         .where((Product p) => p.price != null && p.price! <= maxPrice)
         .toList();
-    return _sorted(matched, ProductSort.recommended).take(limit).toList();
+    return interleave(_sorted(matched, ProductSort.recommended), limit: limit);
   }
 
   /// 상황별 큐레이션.
@@ -98,7 +98,7 @@ class ProductCatalog {
     final List<Product> matched = products
         .where((Product p) => p.occasions.contains(situation))
         .toList();
-    return _sorted(matched, ProductSort.recommended).take(limit).toList();
+    return interleave(_sorted(matched, ProductSort.recommended), limit: limit);
   }
 
   /// 관계별 큐레이션.
@@ -106,22 +106,61 @@ class ProductCatalog {
     final List<Product> matched = products
         .where((Product p) => p.recipientTypes.contains(relationship))
         .toList();
-    return _sorted(matched, ProductSort.recommended).take(limit).toList();
+    return interleave(_sorted(matched, ProductSort.recommended), limit: limit);
   }
 
   /// 할인 중인 상품.
-  List<Product> get discounted => _sorted(
-    products.where((Product p) => p.hasDiscount).toList(),
-    ProductSort.discount,
+  List<Product> get discounted => interleave(
+    _sorted(
+      products.where((Product p) => p.hasDiscount).toList(),
+      ProductSort.discount,
+    ),
+    limit: 20,
   );
 
   /// 홈의 "지금 많이 찾는 선물" 자리를 채우는 고정 목록.
   /// 랜덤을 쓰지 않아 실행할 때마다 같은 순서를 보여준다.
   List<Product> get popular {
-    final List<Product> matched = products
+    List<Product> matched = products
         .where((Product p) => p.occasions.length >= 3)
         .toList();
-    return _sorted(matched, ProductSort.recommended).take(10).toList();
+    // 수집 상품은 상황 태그가 2개인 경우가 많다. 비어 보이지 않게 기준을 낮춘다.
+    if (matched.length < 10) {
+      matched = products.where((Product p) => p.occasions.length >= 2).toList();
+    }
+    return interleave(_sorted(matched, ProductSort.recommended), limit: 12);
+  }
+
+  /// 한 출처·한 분류가 목록을 뒤덮지 않도록 번갈아 뽑는다.
+  ///
+  /// 수집 상품은 공급원마다 양이 크게 달라(문구가 많은 곳 하나가 대부분)
+  /// 그대로 정렬하면 홈이 한쪽으로 쏠린다. `출처+분류`를 묶음으로 보고
+  /// 묶음마다 한 개씩 돌아가며 채운다. 묶음 순서와 묶음 안 순서를 모두
+  /// 고정하므로 같은 카탈로그면 항상 같은 결과가 나온다.
+  static List<Product> interleave(List<Product> items, {int? limit}) {
+    final Map<String, List<Product>> groups = <String, List<Product>>{};
+    for (final Product product in items) {
+      final String key = '${product.source ?? 'bundle'}|${product.category}';
+      groups.putIfAbsent(key, () => <Product>[]).add(product);
+    }
+
+    final List<String> keys = groups.keys.toList()..sort();
+    final List<Product> out = <Product>[];
+    final int max = limit ?? items.length;
+
+    // 묶음이 빌 때까지 한 바퀴씩 돈다.
+    for (int round = 0; out.length < max; round += 1) {
+      bool tookAny = false;
+      for (final String key in keys) {
+        final List<Product> group = groups[key]!;
+        if (round >= group.length) continue;
+        out.add(group[round]);
+        tookAny = true;
+        if (out.length >= max) break;
+      }
+      if (!tookAny) break;
+    }
+    return out;
   }
 
   List<Product> _sorted(List<Product> list, ProductSort sort) {

@@ -195,3 +195,48 @@ test('분류 힌트는 공급원 분류가 없을 때만 쓴다', () => {
   );
   assert.equal(withoutBreadcrumb.category_id, 'book');
 });
+
+test('중복으로 빠진 판매처도 offer 로 남는다', () => {
+  const make = (id, source, price) => ({
+    id,
+    source,
+    source_url: `https://${source}.test/${id}`,
+    dedupe_key: 'same',
+    price,
+    in_stock: true,
+    collected_at: '2026-01-01T00:00:00.000Z',
+  });
+
+  const { merged, offers } = mergeDuplicates([
+    make('10x10-1', '10x10', 20000),
+    make('musinsa-9', 'musinsa', 17000),
+  ]);
+
+  // 대표는 더 싼 쪽 하나만 남는다.
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].id, 'musinsa-9');
+
+  // 두 판매처의 가격·URL 은 모두 보존된다.
+  assert.equal(offers.length, 2);
+  assert.deepEqual(
+    offers.map((offer) => offer.source).sort(),
+    ['10x10', 'musinsa'],
+  );
+  assert.ok(offers.every((offer) => offer.product_id === 'musinsa-9'));
+  assert.ok(offers.every((offer) => offer.source_url.startsWith('https://')));
+});
+
+test('중복이 없어도 자기 판매처는 offer 로 남는다', () => {
+  const { offers } = mergeDuplicates([
+    {
+      id: '10x10-1',
+      source: '10x10',
+      source_url: 'https://x.test/1',
+      dedupe_key: 'only',
+      price: 1000,
+      in_stock: true,
+    },
+  ]);
+  assert.equal(offers.length, 1);
+  assert.equal(offers[0].product_id, '10x10-1');
+});

@@ -49,6 +49,7 @@ interface Candidate {
   tags: string[];
   occasions: string[];
   recipients: string[];
+  source: string;
 }
 
 function json(body: unknown, status = 200): Response {
@@ -67,12 +68,16 @@ async function loadCandidates(intent: GiftIntent, limit = 60): Promise<Candidate
   const query = new URL(`${url}/rest/v1/products`);
   query.searchParams.set(
     'select',
-    'id,brand_name,product_name,price,category_id,tags,occasions,recipient_types',
+    'id,brand_name,product_name,price,category_id,tags,occasions,recipient_types,source',
   );
-  // 실제 상품만, 판매 중인 것만 고른다.
+  // 실제 상품만, 판매 중인 것만, 그리고 화면에 온전히 보여 줄 수 있는 것만 고른다.
+  // 이미지·가격·판매 URL 중 하나라도 없으면 추천 후보로 쓰지 않는다.
   query.searchParams.set('is_demo', 'eq.false');
   query.searchParams.set('is_active', 'eq.true');
   query.searchParams.append('in_stock', 'not.is.false');
+  query.searchParams.append('image_url', 'not.is.null');
+  query.searchParams.append('product_url', 'not.is.null');
+  query.searchParams.append('price', 'not.is.null');
   if (typeof intent.budgetMin === 'number') {
     query.searchParams.append('price', `gte.${Math.max(0, intent.budgetMin)}`);
   }
@@ -103,6 +108,7 @@ async function loadCandidates(intent: GiftIntent, limit = 60): Promise<Candidate
     tags: (row.tags as string[]) ?? [],
     occasions: (row.occasions as string[]) ?? [],
     recipients: (row.recipient_types as string[]) ?? [],
+    source: String(row.source ?? ''),
   }));
 }
 
@@ -113,6 +119,7 @@ function buildMessages(intent: GiftIntent, candidates: Candidate[]) {
     '아래 후보 목록에 있는 상품만 고를 수 있다.',
     '상품명·가격·링크를 새로 만들거나 바꾸지 마라. 목록에 없는 id 는 절대 쓰지 마라.',
     '조건에 맞는 서로 다른 상품 3~5개를 고른다.',
+    '가능하면 분류와 판매처가 한쪽으로 쏠리지 않게 고른다.',
     '각 상품마다 왜 이 사람에게 맞는지 한 문장으로 설명한다.',
     'JSON 으로만 답한다: {"picks":[{"id":"...","reason":"..."}]}',
   ].join('\n');

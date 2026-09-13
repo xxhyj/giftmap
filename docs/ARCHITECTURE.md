@@ -220,6 +220,10 @@ GiftFinderController.submit()
   수집 상품만 `image_url`·`product_url`을 갖고 상세에서 원본 판매 페이지를 열 수 있다.
 - 수집은 앱 밖(Node.js + Playwright)에서 이뤄지고 서버 키를 쓴다. 앱은 관여하지 않는다.
   자세한 내용은 `crawler/README.md`.
+- `product_offers`에는 판매처별 URL·가격이 남는다. 중복 통합으로 `products`에서
+  빠진 판매처 정보를 잃지 않기 위한 표다.
+- 홈 큐레이션은 `ProductCatalog.interleave`가 `출처+분류` 묶음을 번갈아 뽑아
+  한쪽으로 쏠리지 않게 한다. 묶음 순서가 고정이라 결과는 결정론적이다.
 - 앱은 **읽기 전용**이다. 쓰기 정책이 없어 anon 키로는 수정할 수 없다.
 - `service_role`로 보이는 키가 들어오면 연결을 거부하고 Mock으로 돌아간다.
 - 어떤 데이터를 쓰는지는 `ProductCatalog.isRemote`로 확인한다.

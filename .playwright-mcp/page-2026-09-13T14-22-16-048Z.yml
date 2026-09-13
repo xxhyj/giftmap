@@ -1,0 +1,263 @@
+- generic [active] [ref=f12e1]:
+  - list [ref=f12e5]:
+    - listitem [ref=f12e6]:
+      - link "로그인" [ref=f12e7] [cursor=pointer]:
+        - /url: https://www.10x10.co.kr/login/login.asp?vType=G
+      - text: /
+      - link "회원가입" [ref=f12e8] [cursor=pointer]:
+        - /url: /member/join_vue.asp
+    - listitem [ref=f12e9]:
+      - link "알림" [ref=f12e10] [cursor=pointer]:
+        - /url: /my10x10/
+    - listitem [ref=f12e11]:
+      - link "주문/배송" [ref=f12e12] [cursor=pointer]:
+        - /url: /my10x10/order/myorderlist.asp
+    - listitem [ref=f12e13]:
+      - link "장바구니 0" [ref=f12e14] [cursor=pointer]:
+        - /url: ""
+  - generic [ref=f12e17]:
+    - generic [ref=f12e19]:
+      - heading [level=1] [ref=f12e20]:
+        - link "10X10" [ref=f12e21] [cursor=pointer]:
+          - /url: /
+      - generic [ref=f12e22]:
+        - list [ref=f12e23]:
+          - listitem [ref=f12e24]:
+            - link "커뮤니티" [ref=f12e25] [cursor=pointer]:
+              - /url: /forums/index.asp
+          - listitem [ref=f12e26]:
+            - link "대량구매" [ref=f12e27] [cursor=pointer]:
+              - /url: /event/bulk-gift/?gaparam=main_menu_bulk_gift
+          - listitem [ref=f12e28]:
+            - link "캐릭터+" [ref=f12e29] [cursor=pointer]:
+              - /url: /event/characterTown2025/index.asp?gaparam=main_menu_character
+          - listitem [ref=f12e30]:
+            - link "기획전" [ref=f12e31] [cursor=pointer]:
+              - /url: /shoppingtoday/shoppingchance_allevent.asp?gaparam=main_menu_event
+          - listitem [ref=f12e32]:
+            - link "베스트" [ref=f12e33] [cursor=pointer]:
+              - /url: /award/awardlist.asp?atype=b&gaparam=main_menu_best
+          - listitem [ref=f12e34]:
+            - link "할인특가" [ref=f12e35] [cursor=pointer]:
+              - /url: /clearancesale/index.asp?gaparam=main_menu_sale
+          - listitem [ref=f12e36]:
+            - link "브랜드" [ref=f12e37] [cursor=pointer]:
+              - /url: /street/?gaparam=main_menu_brand
+        - generic [ref=f12e39]:
+          - searchbox [ref=f12e40]: 책갈피를 검색해 보세요
+          - button "검색" [ref=f12e41] [cursor=pointer]
+    - list [ref=f12e45]:
+      - listitem [ref=f12e46] [cursor=pointer]:
+        - paragraph [ref=f12e47]: 디자인문구
+      - listitem [ref=f12e48] [cursor=pointer]:
+        - paragraph [ref=f12e49]: 디지털/핸드폰
+      - listitem [ref=f12e50] [cursor=pointer]:
+        - paragraph [ref=f12e51]: 디자인가전
+      - listitem [ref=f12e52] [cursor=pointer]:
+        - paragraph [ref=f12e53]: 가구/수납
+      - listitem [ref=f12e54] [cursor=pointer]:
+        - paragraph [ref=f12e55]: 패브릭/생활
+      - listitem [ref=f12e56] [cursor=pointer]:
+        - paragraph [ref=f12e57]: 데코/조명
+      - listitem [ref=f12e58] [cursor=pointer]:
+        - paragraph [ref=f12e59]: 키친
+      - listitem [ref=f12e60] [cursor=pointer]:
+        - paragraph [ref=f12e61]: 푸드
+      - listitem [ref=f12e62] [cursor=pointer]:
+        - paragraph [ref=f12e63]: 패션의류
+      - listitem [ref=f12e64] [cursor=pointer]:
+        - paragraph [ref=f12e65]: 패션잡화
+      - listitem [ref=f12e66] [cursor=pointer]:
+        - paragraph [ref=f12e67]: 뷰티
+      - listitem [ref=f12e68] [cursor=pointer]:
+        - paragraph [ref=f12e69]: 주얼리/시계
+      - listitem [ref=f12e70] [cursor=pointer]:
+        - paragraph [ref=f12e71]: Cat&Dog
+      - listitem [ref=f12e72] [cursor=pointer]:
+        - paragraph [ref=f12e73]: 토이/취미
+      - listitem [ref=f12e74] [cursor=pointer]:
+        - paragraph [ref=f12e75]: 캠핑
+  - generic [ref=f12e76]:
+    - generic [ref=f12e78]:
+      - textbox [ref=f12e79]: 향수
+      - button [ref=f12e80] [cursor=pointer]:
+        - img "검색어 삭제" [ref=f12e81]
+    - generic [ref=f12e85]:
+      - list [ref=f12e89]:
+        - listitem [ref=f12e90] [cursor=pointer]
+        - listitem [ref=f12e91] [cursor=pointer]
+        - listitem [ref=f12e92] [cursor=pointer]
+        - listitem [ref=f12e93] [cursor=pointer]
+        - listitem [ref=f12e94] [cursor=pointer]
+        - listitem [ref=f12e95] [cursor=pointer]
+        - listitem [ref=f12e96] [cursor=pointer]
+        - listitem [ref=f12e97] [cursor=pointer]
+      - list [ref=f12e99]:
+        - listitem [ref=f12e100]:
+          - link [ref=f12e101] [cursor=pointer]:
+            - /url: javascript:void(0)
+            - list [ref=f12e108]:
+              - listitem [ref=f12e109]
+        - listitem [ref=f12e111]:
+          - link [ref=f12e112] [cursor=pointer]:
+            - /url: javascript:void(0)
+            - list [ref=f12e119]:
+              - listitem [ref=f12e120]
+        - listitem [ref=f12e122]:
+          - link [ref=f12e123] [cursor=pointer]:
+            - /url: javascript:void(0)
+            - list [ref=f12e130]:
+              - listitem [ref=f12e131]
+        - listitem [ref=f12e133]:
+          - link [ref=f12e134] [cursor=pointer]:
+            - /url: javascript:void(0)
+            - list [ref=f12e141]:
+              - listitem [ref=f12e142]
+        - listitem [ref=f12e144]:
+          - link [ref=f12e145] [cursor=pointer]:
+            - /url: javascript:void(0)
+            - list [ref=f12e152]:
+              - listitem [ref=f12e153]
+        - listitem [ref=f12e155]:
+          - link [ref=f12e156] [cursor=pointer]:
+            - /url: javascript:void(0)
+            - list [ref=f12e163]:
+              - listitem [ref=f12e164]
+        - listitem [ref=f12e166]:
+          - link [ref=f12e167] [cursor=pointer]:
+            - /url: javascript:void(0)
+            - list [ref=f12e174]:
+              - listitem [ref=f12e175]
+        - listitem [ref=f12e177]:
+          - link [ref=f12e178] [cursor=pointer]:
+            - /url: javascript:void(0)
+            - list [ref=f12e185]:
+              - listitem [ref=f12e186]
+        - listitem [ref=f12e188]:
+          - link [ref=f12e189] [cursor=pointer]:
+            - /url: javascript:void(0)
+            - list [ref=f12e196]:
+              - listitem [ref=f12e197]
+        - listitem [ref=f12e199]:
+          - link [ref=f12e200] [cursor=pointer]:
+            - /url: javascript:void(0)
+            - list [ref=f12e207]:
+              - listitem [ref=f12e208]
+        - listitem [ref=f12e210]:
+          - link [ref=f12e211] [cursor=pointer]:
+            - /url: javascript:void(0)
+            - list [ref=f12e218]:
+              - listitem [ref=f12e219]
+        - listitem [ref=f12e221]:
+          - link [ref=f12e222] [cursor=pointer]:
+            - /url: javascript:void(0)
+            - list [ref=f12e229]:
+              - listitem [ref=f12e230]
+  - generic [ref=f12e232]:
+    - generic [ref=f12e234]:
+      - list [ref=f12e235]:
+        - listitem [ref=f12e236]:
+          - link "회사소개" [ref=f12e237] [cursor=pointer]:
+            - /url: https://backpac.kr/
+        - listitem [ref=f12e238]:
+          - link "채용정보" [ref=f12e239] [cursor=pointer]:
+            - /url: https://team.backpac.kr/ko/home
+        - listitem [ref=f12e240]:
+          - link "이용약관" [ref=f12e241] [cursor=pointer]:
+            - /url: /common/join.asp
+        - listitem [ref=f12e242]:
+          - link "개인정보 처리방침" [ref=f12e243] [cursor=pointer]:
+            - /url: /common/private.asp
+        - listitem [ref=f12e244]:
+          - link "청소년 보호정책" [ref=f12e245] [cursor=pointer]:
+            - /url: /common/youth.asp
+      - list [ref=f12e246]:
+        - listitem [ref=f12e247]:
+          - link [ref=f12e248] [cursor=pointer]:
+            - /url: https://company.10x10.co.kr/Views/pop/PopAlliance2.asp
+            - strong [ref=f12e249]: 입점문의
+        - listitem [ref=f12e250]:
+          - link "제휴/광고" [ref=f12e251] [cursor=pointer]:
+            - /url: https://company.10x10.co.kr/Views/pop/PopAlliance.asp
+        - listitem [ref=f12e252]:
+          - link "공지사항" [ref=f12e253] [cursor=pointer]:
+            - /url: /common/news_list.asp
+        - listitem [ref=f12e254]:
+          - link "매장안내" [ref=f12e255] [cursor=pointer]:
+            - /url: https://www.10x10.co.kr/offshop/index.asp
+    - generic [ref=f12e256]:
+      - img "10X10" [ref=f12e258]
+      - generic [ref=f12e259]:
+        - generic [ref=f12e260]:
+          - list [ref=f12e261]:
+            - listitem [ref=f12e262]: ㈜백패커
+            - listitem [ref=f12e263]: "대표이사 : 김동환"
+            - listitem [ref=f12e264]: "주소 : 서울특별시 서초구 서초대로 398 그레이츠 강남 20층"
+          - list [ref=f12e265]:
+            - listitem [ref=f12e266]: "사업자등록번호 : 107-87-83297"
+            - listitem [ref=f12e267]: "통신판매업 신고 : 2023-서울서초-2114"
+            - listitem [ref=f12e268]:
+              - link "사업자 정보확인" [ref=f12e269] [cursor=pointer]:
+                - /url: http://www.ftc.go.kr/bizCommPop.do?wrkr_no=1078783297
+          - list [ref=f12e270]:
+            - listitem [ref=f12e271]: "전화번호 : 1644-6030"
+            - listitem [ref=f12e272]: "E-mail : customer@10x10.co.kr"
+          - list [ref=f12e273]:
+            - listitem [ref=f12e274]: "개인정보보호책임자 : 김동철"
+            - listitem [ref=f12e275]: 소비자피해보상보험 SGI 서울보증
+            - listitem [ref=f12e276]:
+              - link "서비스 가입 사실 확인" [ref=f12e277] [cursor=pointer]:
+                - /url: /inipay/Backpacker_PurchaseSafetyService_Certificate.pdf
+          - generic [ref=f12e278]: "호스팅서비스 : (주)백패커"
+          - paragraph [ref=f12e279]: 사이트 내 판매 상품 중 일부는 (주)백패커에 입점한 개별판매자가 판매하는 상품이 포함되어 있습니다. 해당 상품의 경우 (주)백패커는 통신판매중개자로서 판매 당사자가 아니며, 상품정보 및 거래 등에 대한 책임을 지지 않습니다.
+          - paragraph [ref=f12e280]: COPYRIGHT © TENBYTEN ALL RIGHTS RESERVED.
+        - generic [ref=f12e281]:
+          - generic [ref=f12e282]:
+            - link "고객센터 바로가기" [ref=f12e283] [cursor=pointer]:
+              - /url: /cscenter/
+            - list [ref=f12e284]:
+              - listitem [ref=f12e285]:
+                - text: "• 운영시간 :"
+                - generic [ref=f12e286]: 오전 10시 ~ 오후 5시 (주말, 공휴일 휴무)
+              - listitem [ref=f12e287]:
+                - text: "• 점심시간 :"
+                - generic [ref=f12e288]: 오후 12시 30분 ~ 오후 1시 30분
+          - generic [ref=f12e289]:
+            - paragraph [ref=f12e290]: 서비스
+            - list [ref=f12e291]:
+              - listitem [ref=f12e292]:
+                - link "텐바이텐 기프트카드" [ref=f12e293] [cursor=pointer]:
+                  - /url: /giftcard/
+              - listitem [ref=f12e294]:
+                - link "기프트콘 상품교환" [ref=f12e295] [cursor=pointer]:
+                  - /url: /gift/gifticon/
+              - listitem [ref=f12e296]:
+                - link "선물포장 서비스" [ref=f12e297] [cursor=pointer]:
+                  - /url: /shoppingtoday/gift_recommend.asp
+              - listitem [ref=f12e298]:
+                - link "비회원 메일신청" [ref=f12e299] [cursor=pointer]:
+                  - /url: /member/mailzine/notmember_pop.asp
+              - listitem [ref=f12e300]:
+                - link "고마워 텐바이텐" [ref=f12e301] [cursor=pointer]:
+                  - /url: /cscenter/thanks10x10.asp?gaparam=main_menu_thanks
+              - listitem [ref=f12e302]:
+                - link "쿠폰북" [ref=f12e303] [cursor=pointer]:
+                  - /url: /shoppingtoday/couponshop.asp
+        - generic [ref=f12e304]:
+          - link "앱 다운받고 쿠폰 받기" [ref=f12e305] [cursor=pointer]:
+            - /url: /event/appdown/
+          - img "앱 다운로드 QR 코드" [ref=f12e306]
+          - list [ref=f12e307]:
+            - listitem [ref=f12e308]:
+              - link [ref=f12e309] [cursor=pointer]:
+                - /url: https://instagram.com/your10x10/
+                - img "인스타그램" [ref=f12e310]
+            - listitem [ref=f12e311]:
+              - link [ref=f12e312] [cursor=pointer]:
+                - /url: https://www.facebook.com/your10x10
+                - img "페이스북" [ref=f12e313]
+            - listitem [ref=f12e314]:
+              - link [ref=f12e315] [cursor=pointer]:
+                - /url: https://www.youtube.com/user/10x10x2010/
+                - img "유튜브" [ref=f12e316]
+        - paragraph [ref=f12e317] [cursor=pointer]: TOP

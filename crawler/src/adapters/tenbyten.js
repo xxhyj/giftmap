@@ -1,4 +1,16 @@
 import { readJsonLd } from '../extract.js';
+import { GIFT_KEYWORDS, searchListings } from './helpers.js';
+
+/**
+ * 선물 카테고리별 검색 목록.
+ * robots.txt 가 `/search/` 를 허용한다. 분류 페이지만 쓰면 문구·취미에 쏠려
+ * 향수·뷰티·식품·가전이 빠지므로 검색으로 넓힌다.
+ */
+const search = searchListings(
+  (keyword) =>
+    `https://www.10x10.co.kr/search/renewal/index.asp?rect=${encodeURIComponent(keyword)}`,
+  GIFT_KEYWORDS,
+);
 
 /**
  * 텐바이텐(10x10) 어댑터.
@@ -20,8 +32,14 @@ export const tenByTenAdapter = {
    * 한 카테고리에 몰리지 않도록 상위 분류를 고루 넣는다(`disp` 는 10x10 의 분류 코드).
    */
   listingUrls: [
-    101, 102, 103, 104, 106, 107, 109, 110, 111, 112,
-  ].map((disp) => `https://www.10x10.co.kr/shopping/category_list.asp?disp=${disp}`),
+    ...[101, 102, 103, 104, 106, 107, 109, 110, 111, 112].map(
+      (disp) => `https://www.10x10.co.kr/shopping/category_list.asp?disp=${disp}`,
+    ),
+    ...search.urls,
+  ],
+
+  /** 검색으로 들어온 목록은 검색어가 곧 분류 힌트다. */
+  categoryFor: (listingUrl) => search.hintOf(listingUrl),
 
   /**
    * 목록 페이지에서 상품 상세 URL 을 모은다.
@@ -32,6 +50,11 @@ export const tenByTenAdapter = {
   async collectProductUrls(page, listingUrl, limit) {
     await page.goto(listingUrl, { waitUntil: 'domcontentloaded', timeout: 45_000 });
     await page.waitForTimeout(1_500);
+
+    // 검색 결과는 무한 스크롤이고 상품 id 를 data-item-id 로 노출한다.
+    if (listingUrl.includes('/search/')) {
+      return this._collectFromSearch(page, limit);
+    }
 
     const nodes = await readJsonLd(page);
     const fromList = nodes
@@ -55,6 +78,38 @@ export const tenByTenAdapter = {
       seen.add(itemId);
       // 추적 파라미터를 떼어 항상 같은 URL 로 만든다.
       urls.push(`${this.origin}/shopping/category_prd.asp?itemid=${itemId}`);
+      if (urls.length >= limit) break;
+    }
+    return urls;
+  },
+
+  /**
+   * 검색 결과에서 상품 id 를 모은다.
+   *
+   * 목록이 스크롤에 따라 이어지므로, 목표 개수를 채우거나 더 늘지 않을 때까지
+   * 내려간다. 공급원 부하를 생각해 스크롤 횟수에 상한을 둔다.
+   */
+  async _collectFromSearch(page, limit) {
+    const idsOnPage = () =>
+      page.$$eval('[data-item-id]', (nodes) =>
+        nodes.map((node) => node.getAttribute('data-item-id')).filter(Boolean),
+      );
+
+    let ids = await idsOnPage();
+    for (let i = 0; i < 12 && ids.length < limit; i += 1) {
+      const before = ids.length;
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      await page.waitForTimeout(1_100);
+      ids = await idsOnPage();
+      if (ids.length === before) break; // 더 나오지 않으면 멈춘다.
+    }
+
+    const seen = new Set();
+    const urls = [];
+    for (const id of ids) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      urls.push(`${this.origin}/shopping/category_prd.asp?itemid=${id}`);
       if (urls.length >= limit) break;
     }
     return urls;

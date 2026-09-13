@@ -87,7 +87,7 @@ class HomeScreen extends StatelessWidget {
               ),
               ProductCarouselSection(
                 title: '요즘 눈여겨볼 선물',
-                subtitle: '지금 할인 중인 데모 상품',
+                subtitle: '지금 할인 중인 상품',
                 products: deps.catalog.discounted,
                 onOpen: open,
               ),
@@ -99,7 +99,7 @@ class HomeScreen extends StatelessWidget {
               ),
               ProductCarouselSection(
                 title: '인기 상품',
-                subtitle: '데모 데이터 기준으로 고른 대표 상품',
+                subtitle: '여러 판매처에서 고루 뽑은 대표 상품',
                 products: deps.catalog.byPriceUnder(50000, limit: 12),
                 onOpen: open,
               ),

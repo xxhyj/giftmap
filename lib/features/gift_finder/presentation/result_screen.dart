@@ -9,7 +9,7 @@ import '../../../core/widgets/rounded_surface.dart';
 import '../../../core/widgets/selectable_chip.dart';
 import '../../products/domain/product.dart';
 import '../../products/presentation/product_detail_screen.dart';
-import '../../products/presentation/widgets/product_collections.dart';
+import '../../products/presentation/widgets/paged_product_grid.dart';
 import '../application/gift_finder_controller.dart';
 import '../data/product_recommendation_engine.dart';
 import '../domain/gift_intent.dart';
@@ -115,7 +115,7 @@ class _ResultScreenState extends State<ResultScreen> {
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.screen,
                     ),
-                    child: ProductGrid(
+                    child: PagedProductGrid(
                       products: shown
                           .map((ProductPick p) => p.product)
                           .toList(growable: false),
