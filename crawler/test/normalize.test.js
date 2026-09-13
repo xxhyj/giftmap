@@ -240,3 +240,48 @@ test('중복이 없어도 자기 판매처는 offer 로 남는다', () => {
   assert.equal(offers.length, 1);
   assert.equal(offers[0].product_id, '10x10-1');
 });
+
+test('앞서 저장한 상품은 다음 묶음에서 다시 만들지 않는다', () => {
+  // 공급원별로 나눠 저장할 때, 먼저 저장한 상품의 중복키를 이어서 쓰는 상황.
+  const known = new Map();
+
+  const first = mergeDuplicates(
+    [
+      {
+        id: '10x10-1',
+        source: '10x10',
+        source_url: 'https://a.test/1',
+        dedupe_key: 'same',
+        price: 20000,
+        in_stock: true,
+      },
+    ],
+    known,
+  );
+  assert.equal(first.merged.length, 1);
+
+  // 저장이 끝나면 호출부가 known 에 더한다(saveBatch 가 하는 일).
+  for (const row of first.merged) known.set(row.dedupe_key, row.id);
+
+  // 다음 공급원이 같은 상품을 들고 와도 새 상품을 만들지 않는다.
+  const second = mergeDuplicates(
+    [
+      {
+        id: '29cm-9',
+        source: '29cm',
+        source_url: 'https://b.test/9',
+        dedupe_key: 'same',
+        price: 17000,
+        in_stock: true,
+      },
+    ],
+    known,
+  );
+  assert.equal(second.merged.length, 0);
+  assert.equal(second.dropped, 1);
+
+  // 다만 판매처 정보는 먼저 저장된 상품에 매달아 보존한다.
+  assert.equal(second.offers.length, 1);
+  assert.equal(second.offers[0].product_id, '10x10-1');
+  assert.equal(second.offers[0].source, '29cm');
+});

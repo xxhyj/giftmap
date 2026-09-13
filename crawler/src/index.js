@@ -362,16 +362,30 @@ async function main() {
     );
     return;
   }
+  console.log(`Supabase 저장 합계: ${uploaded}건 (is_demo = false)`);
+}
+
+/**
+ * 공급원 하나 분량을 바로 저장한다.
+ *
+ * 여기서 중복을 한 번 정리하고 올린 뒤, 새로 만든 중복키를 `known` 에 더한다.
+ * 그래야 다음 공급원이 같은 상품을 또 만들지 않는다.
+ * 저장에 실패해도 예외를 밖으로 던지지 않는다. 남은 공급원은 계속 수집한다.
+ */
+async function saveBatch(client, batchRows, known) {
+  const { merged, offers } = mergeDuplicates(batchRows, known);
+  if (merged.length === 0) return { products: 0, offers: 0 };
 
   try {
-    const { inserted } = await upsertProducts(client, merged);
-    console.log(`Supabase upsert 완료: ${inserted}건 (is_demo = false)`);
+    await upsertProducts(client, merged);
     const offerCount = await upsertOffers(client, offers, merged);
-    console.log(`판매처(offer) 저장: ${offerCount}건`);
+    for (const row of merged) {
+      if (row.dedupe_key) known.set(row.dedupe_key, row.id);
+    }
+    return { products: merged.length, offers: offerCount };
   } catch (error) {
-    console.error(`Supabase 업로드 실패: ${error.message}`);
-    console.error('DB 의 기존 상품은 그대로입니다.');
-    process.exitCode = 1;
+    console.error(`저장 실패(수집은 계속합니다): ${error.message ?? error}`);
+    return { products: 0, offers: 0 };
   }
 }
 
