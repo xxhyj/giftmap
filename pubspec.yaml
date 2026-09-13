@@ -36,12 +36,17 @@ dependencies:
   cupertino_icons: ^1.0.8
   shared_preferences: ^2.5.5
   supabase_flutter: ^2.17.2
-  # 상세 화면의 "상품 보러 가기"에서 원본 판매 페이지를 외부 브라우저로 연다.
+  # 상세 화면의 "상품 보러 가기"가 여는 인앱 브라우저.
+  webview_flutter: ^4.14.1
+  # 사용자가 판매처 앱으로 넘어가기를 고를 때만 외부로 넘긴다.
   url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+  # 위젯 테스트에서 웹뷰 대역을 만들 때 쓴다(실행 코드에는 쓰지 않는다).
+  webview_flutter_platform_interface: ^2.14.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

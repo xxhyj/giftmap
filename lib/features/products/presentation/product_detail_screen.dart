@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/app_scope.dart';
 import '../../../core/theme/app_colors.dart';
@@ -11,6 +10,7 @@ import '../../gift_finder/domain/gift_intent.dart';
 import '../domain/product.dart';
 import 'widgets/product_card.dart';
 import 'widgets/product_collections.dart';
+import 'store_browser_screen.dart';
 import 'widgets/product_visual.dart';
 
 /// 상품 상세.
@@ -114,8 +114,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     const SizedBox(height: AppSpacing.md),
                     ProductPrice(product: product, large: true),
                     const SizedBox(height: AppSpacing.xs),
-                    // 데모 상품에만 데모 고지를 붙인다.
-                    // 수집한 실제 상품에는 "언제 확인한 값인지"를 알린다.
+                    // 데모 상품에는 데모 고지를, 수집한 실제 상품에는
+                    // "언제·어디서 확인한 값인지"를 알린다.
                     Text(
                       product.isDemo
                           ? deps.productDisclaimer
@@ -286,23 +286,24 @@ class _DetailActionBar extends StatelessWidget {
 
   final Product product;
 
-  Future<void> _openStore(BuildContext context) async {
+  /// 판매처 상품 페이지를 Giftmap 안에서 연다.
+  ///
+  /// 판매처 앱으로 곧장 넘기지 않는다. 앱은 대개 로그인부터 요구해서,
+  /// 그냥 상품을 보려던 사람에게는 막다른 길이 된다. 웹 페이지는 로그인 없이
+  /// 볼 수 있고, 구매까지 갈 사람은 그 페이지에서 스스로 앱을 고를 수 있다.
+  void _openStore(BuildContext context) {
     final Uri? url = Uri.tryParse(product.productUrl ?? '');
-    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
-    bool opened = false;
-    if (url != null && url.hasScheme) {
-      try {
-        opened = await launchUrl(url, mode: LaunchMode.externalApplication);
-      } on Object {
-        // 브라우저를 열 수 없는 환경에서도 화면이 멈추지 않게 한다.
-        opened = false;
-      }
+    if (url == null || (!url.isScheme('https') && !url.isScheme('http'))) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('판매 페이지 주소를 읽을 수 없어요.')));
+      return;
     }
-    if (!opened) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('판매 페이지를 열 수 없어요. 잠시 후 다시 시도해 주세요.')),
-      );
-    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => StoreBrowserScreen(product: product),
+      ),
+    );
   }
 
   @override
@@ -327,7 +328,7 @@ class _DetailActionBar extends StatelessWidget {
             Text(
               switch ((product.isSoldOut, canOpenStore)) {
                 (true, _) => '지금은 품절이에요. 다시 들어오면 주문할 수 있어요.',
-                (false, true) => '판매처 페이지로 이동해요. 가격과 재고는 판매처 기준이에요.',
+                (false, true) => 'Giftmap 안에서 판매처 페이지를 열어요. 로그인 없이 볼 수 있어요.',
                 (false, false) => '데모 상품이라 실제 판매 페이지 연동은 준비 중이에요.',
               },
               style: Theme.of(context).textTheme.labelSmall,

@@ -62,7 +62,10 @@ recommendation_reason, is_demo, sort_order, created_at
     return ProductCatalog(
       products: List<Product>.unmodifiable(products),
       version: 'supabase',
-      disclaimer: defaultProductDisclaimer,
+      // 수집한 실제 상품만 읽는 모드에서는 데모 고지를 붙이지 않는다.
+      disclaimer: realOnly
+          ? collectedProductDisclaimer
+          : defaultProductDisclaimer,
       searchSuggestions: List<String>.unmodifiable(
         suggestionRows
             .map((Map<String, dynamic> row) => row['keyword']?.toString())

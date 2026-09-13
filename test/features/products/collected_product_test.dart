@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:giftmap/features/products/data/bundled_product_data_source.dart';
 import 'package:giftmap/features/products/domain/product.dart';
+import 'package:giftmap/features/products/domain/product_catalog.dart';
 import 'package:giftmap/features/products/presentation/widgets/product_visual.dart';
 
 /// `crawler/`가 수집해 Supabase에 올린 실제 상품 한 건.
@@ -70,6 +72,21 @@ void main() {
     expect(soldOut.isSoldOut, isTrue);
     // 공급원이 재고를 알려주지 않으면 품절로 단정하지 않는다.
     expect(unknown.isSoldOut, isFalse);
+  });
+
+  test('실제 상품 카탈로그는 데모 고지를 쓰지 않는다', () {
+    // 수집 상품에 "데모 데이터입니다"를 붙이면 사용자가 오해한다.
+    expect(collectedProductDisclaimer, isNot(contains('데모')));
+    expect(defaultProductDisclaimer, contains('데모'));
+
+    final ProductCatalog real = ProductCatalog(
+      products: <Product>[
+        Product.fromJson(_collectedJson(productUrl: 'https://example.test/1')),
+      ],
+      version: 'supabase',
+      disclaimer: collectedProductDisclaimer,
+    );
+    expect(real.disclaimer, isNot(contains('데모')));
   });
 
   testWidgets('이미지 URL이 있으면 원격 이미지를 그린다', (WidgetTester tester) async {

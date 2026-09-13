@@ -13,9 +13,16 @@ abstract interface class ProductDataSource {
   Future<ProductCatalog> load();
 }
 
-/// 데모 데이터 고지 문구 기본값.
+/// 번들 데모 데이터에 붙는 고지.
 const String defaultProductDisclaimer =
     '데모 상품 데이터입니다. 실제 판매 상품이나 실시간 가격이 아닙니다.';
+
+/// 수집한 실제 상품에 붙는 고지.
+///
+/// 실제 판매 상품이지만 가격·재고는 수집 시점의 값이라 판매처와 다를 수 있다.
+/// 데모가 아닌데 "데모 데이터"라고 알리면 사용자를 오해하게 만든다.
+const String collectedProductDisclaimer =
+    '판매처에 공개된 정보를 옮긴 실제 상품입니다. 가격과 재고는 판매처 기준으로 달라질 수 있습니다.';
 
 /// `lib/data/products.json`을 읽어 카탈로그를 만든다.
 ///

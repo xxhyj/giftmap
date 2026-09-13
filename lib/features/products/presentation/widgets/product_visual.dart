@@ -153,12 +153,19 @@ class ProductImage extends StatelessWidget {
         url,
         fit: BoxFit.cover,
         semanticLabel: product.productName,
-        // 네트워크가 느리거나 실패해도 빈 사각형을 보여주지 않는다.
+        // 새 이미지가 준비될 때까지 앞 이미지를 유지해 깜빡임을 줄인다.
+        gaplessPlayback: true,
+        // 목록 카드는 작게 그려지므로 원본 해상도까지 디코딩할 필요가 없다.
+        // 디코딩 비용과 메모리를 줄여 스크롤 중 이미지가 늦게 뜨는 것을 덜어준다.
+        cacheWidth: expand ? 400 : null,
+        // 받는 중에는 조용한 자리표시자를 둔다.
+        // 여기서 카테고리 그림을 보여주면 "이미지가 깨졌다"로 읽힌다.
         loadingBuilder: (
           BuildContext context,
           Widget child,
           ImageChunkEvent? progress,
-        ) => progress == null ? child : painted,
+        ) => progress == null ? child : const _LoadingVisual(),
+        // 정말 못 받은 경우에만 카테고리 그림으로 대신한다.
         errorBuilder: (BuildContext context, Object error, StackTrace? stack) =>
             painted,
       );
@@ -173,6 +180,18 @@ class ProductImage extends StatelessWidget {
           : AspectRatio(aspectRatio: aspectRatio, child: content),
     );
   }
+}
+
+/// 이미지를 받는 동안 두는 자리표시자.
+///
+/// 카테고리 그림을 쓰면 다 받은 뒤 그림이 바뀌어 "깨졌다가 고쳐진" 것처럼 보인다.
+/// 그래서 아무 의미 없는 옅은 면만 둔다.
+class _LoadingVisual extends StatelessWidget {
+  const _LoadingVisual();
+
+  @override
+  Widget build(BuildContext context) =>
+      const ColoredBox(color: AppColors.surfaceMuted);
 }
 
 class _PaintedVisual extends StatelessWidget {
