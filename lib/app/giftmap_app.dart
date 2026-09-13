@@ -37,6 +37,9 @@ class GiftmapApp extends StatefulWidget {
   final CategoryDataSource? dataSource;
 
   /// 상품 카탈로그 데이터 소스.
+  ///
+  /// 기본값은 번들 Mock 데이터다. `main()`이 Supabase 연결에 성공하면
+  /// 원격 우선 데이터 소스를 넣어 준다.
   final ProductDataSource? productDataSource;
 
   /// 찜·최근 본 상품 저장소.

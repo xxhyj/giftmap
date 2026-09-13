@@ -12,6 +12,11 @@ void main() {
     catalog = loadBundledCatalog();
   });
 
+  test('번들 카탈로그는 추천 검색어를 함께 제공한다', () {
+    expect(catalog.searchSuggestions, isNotEmpty);
+    expect(catalog.isRemote, isFalse);
+  });
+
   test('카탈로그는 30개 이상의 상품을 담는다', () {
     expect(catalog.products.length, greaterThanOrEqualTo(30));
     expect(catalog.categories.length, greaterThanOrEqualTo(10));

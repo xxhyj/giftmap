@@ -1,0 +1,17 @@
+{
+  "name": "giftmap-crawler",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Giftmap 공개 상품 페이지 수집기 (Playwright + Supabase upsert)",
+  "scripts": {
+    "install:browser": "playwright install chromium",
+    "collect": "node src/index.js",
+    "collect:dry": "node src/index.js --dry-run",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
+    "playwright": "^1.52.0"
+  }
+}

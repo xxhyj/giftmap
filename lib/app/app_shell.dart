@@ -18,7 +18,15 @@ class ShellTabController extends ValueNotifier<int> {
   static const int favoritesTab = 3;
   static const int historyTab = 4;
 
-  void goTo(int index) => value = index;
+  /// 탭 이동. 같은 탭을 다시 눌러도 "재진입"으로 보고 알린다.
+  /// 선물추천 탭은 이 신호로 완료된 세션을 새로 시작한다.
+  void goTo(int index) {
+    if (value == index) {
+      notifyListeners();
+      return;
+    }
+    value = index;
+  }
 }
 
 /// 홈 / 카테고리 / 선물추천 / 찜 / 기록 5개 탭.

@@ -1,9 +1,12 @@
 import '../../gift_finder/domain/gift_intent.dart';
 
-/// 로컬 Mock 카탈로그의 상품 한 건.
+/// 카탈로그의 상품 한 건.
 ///
-/// 실제 판매 상품이 아니라 데모 데이터다. 가격은 실시간 시세가 아니며
-/// 화면에서는 항상 데모 데이터임을 함께 표시한다.
+/// 두 종류가 섞여 있다.
+/// - 번들 데모 상품(`isDemo == true`): 실제 판매 상품이 아니고 가격도 Mock 시세다.
+///   화면에서 항상 데모임을 함께 표시한다.
+/// - 수집 상품(`isDemo == false`): `crawler/`가 공급원의 공개 페이지에서 읽어
+///   Supabase에 올린 실제 판매 상품이며 [productUrl]로 원본을 열 수 있다.
 class Product {
   const Product({
     required this.id,
@@ -25,6 +28,7 @@ class Product {
     this.originalPrice,
     this.discountRate,
     this.imageAsset,
+    this.imageUrl,
     this.productUrl,
     this.genderTarget,
     this.isDemo = true,
@@ -52,7 +56,11 @@ class Product {
   /// 로컬 asset 경로. 없으면 카테고리 기반 비주얼을 그린다.
   final String? imageAsset;
 
-  /// 실제 판매 페이지 주소. 현재 카탈로그는 모두 null이며,
+  /// 수집한 상품의 공개 이미지 주소. 번들 데모 상품은 null이다.
+  /// asset → 원격 이미지 → 카테고리 비주얼 순으로 그린다.
+  final String? imageUrl;
+
+  /// 실제 판매 페이지 주소. 수집 상품에는 값이 있고 데모 상품은 null이다.
   /// null이면 구매 CTA를 활성화하지 않는다.
   final String? productUrl;
 
@@ -69,9 +77,14 @@ class Product {
   final String description;
   final String recommendationReason;
 
-  /// 데모 데이터 여부. 현재 카탈로그는 모두 true다.
+  /// 데모 데이터 여부. 번들 카탈로그는 모두 true이고,
+  /// `crawler/`가 수집해 Supabase에 올린 실제 상품은 false다.
   final bool isDemo;
   final DateTime createdAt;
+
+  /// 실제 판매 페이지로 이동할 수 있는 상품인지.
+  /// 데모 상품에는 판매 페이지가 없으므로 CTA를 활성화하지 않는다.
+  bool get canOpenStore => !isDemo && (productUrl?.isNotEmpty ?? false);
 
   bool get hasPrice => price != null;
 
@@ -129,6 +142,7 @@ class Product {
                 (((originalPrice - price) * 100) / originalPrice).round())
           : null,
       imageAsset: _str(json['imageAsset']),
+      imageUrl: _str(json['imageUrl']),
       productUrl: _str(json['productUrl']),
       tags: _strList(json['tags']),
       occasions: _strList(json['occasions'])

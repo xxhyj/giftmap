@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/app_scope.dart';
 import '../../../core/theme/app_colors.dart';
@@ -15,7 +16,8 @@ import 'widgets/product_visual.dart';
 /// 상품 상세.
 ///
 /// 화면에 진입하면 최근 본 상품에 자동으로 기록된다.
-/// 실제 판매처 연결은 이번 단계에서 구현하지 않으며 CTA는 비활성 상태다.
+/// 수집한 실제 상품은 하단의 단일 CTA로 원본 판매 페이지를 외부 브라우저에서 열고,
+/// 번들 데모 상품은 판매 페이지가 없으므로 CTA가 비활성 상태로 남는다.
 class ProductDetailScreen extends StatefulWidget {
   const ProductDetailScreen({
     required this.product,
@@ -241,18 +243,37 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-/// 하단 고정 액션. 상품 이동은 데모 상태로 비활성이다.
+/// 하단 고정 액션.
+///
+/// 수집한 실제 상품에서만 "상품 보러 가기"가 활성화되고, 원본 판매 페이지를
+/// 외부 브라우저로 연다. 앱 안에서 결제·구매를 처리하지 않는다.
 class _DetailActionBar extends StatelessWidget {
   const _DetailActionBar({required this.product});
 
   final Product product;
 
-  /// 판매 페이지 주소가 없으면 구매 CTA를 활성화하지 않는다.
-  bool get _canOpenStore =>
-      product.productUrl != null && product.productUrl!.isNotEmpty;
+  Future<void> _openStore(BuildContext context) async {
+    final Uri? url = Uri.tryParse(product.productUrl ?? '');
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    bool opened = false;
+    if (url != null && url.hasScheme) {
+      try {
+        opened = await launchUrl(url, mode: LaunchMode.externalApplication);
+      } on Object {
+        // 브라우저를 열 수 없는 환경에서도 화면이 멈추지 않게 한다.
+        opened = false;
+      }
+    }
+    if (!opened) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('판매 페이지를 열 수 없어요. 잠시 후 다시 시도해 주세요.')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final bool canOpenStore = product.canOpenStore;
     return SafeArea(
       top: false,
       child: Container(
@@ -270,8 +291,8 @@ class _DetailActionBar extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Text(
-              _canOpenStore
-                  ? '판매처 페이지로 이동해요.'
+              canOpenStore
+                  ? '판매처 페이지로 이동해요. 가격과 재고는 판매처 기준이에요.'
                   : '데모 상품이라 실제 판매 페이지 연동은 준비 중이에요.',
               style: Theme.of(context).textTheme.labelSmall,
               textAlign: TextAlign.center,
@@ -287,8 +308,11 @@ class _DetailActionBar extends StatelessWidget {
                   child: FavoriteButton(productId: product.id),
                 ),
                 const SizedBox(width: AppSpacing.md),
-                const Expanded(
-                  child: FilledButton(onPressed: null, child: Text('상품 보러가기')),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: canOpenStore ? () => _openStore(context) : null,
+                    child: const Text('상품 보러 가기'),
+                  ),
                 ),
               ],
             ),

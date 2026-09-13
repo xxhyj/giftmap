@@ -35,6 +35,9 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   shared_preferences: ^2.5.5
+  supabase_flutter: ^2.17.2
+  # 상세 화면의 "상품 보러 가기"에서 원본 판매 페이지를 외부 브라우저로 연다.
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

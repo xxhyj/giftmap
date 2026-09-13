@@ -34,6 +34,8 @@
 | `features/history/history_store_test.dart` | 6 | 저장·삭제·필터·요약 |
 | `features/anniversary/anniversary_store_test.dart` | 6 | 등록·정렬·D-day·삭제 |
 | `core/affiliate_link_policy_test.dart` | 6 | https·allowlist·고지·미지원 결과 |
+| `core/config/supabase_config_test.dart` | 6 | 설정 유무 판정·service_role 키 차단 |
+| `features/products/remote_first_product_data_source_test.dart` | 4 | 원격 우선·실패/빈 결과/타임아웃 fallback |
 | `widget_test.dart` | 5 | 홈 큐레이션·위저드 5단계·상품 상세·텍스트 확대·터치 영역 |
 | `commerce_flows_test.dart` | 7 | 검색·빈 결과·찜·최근 본 상품·보관함·추천 기록 |
 | `app_flows_test.dart` | 4 | 기록 삭제 확인·기념일·전체 삭제·문의 |
@@ -181,6 +183,30 @@ flutter test
 실패를 남긴 채 다음 기능으로 넘어가지 않는다.
 테스트를 삭제하거나 주석 처리해 통과시키지 않는다.
 
+## 11-1. Supabase 연동 검증
+
+- 단위 테스트는 네트워크를 쓰지 않는다. `SupabaseProductDataSource`는 실제 연결이
+  필요하므로 자동 테스트 대상이 아니며, 대신 fallback 경로를 전부 검증한다.
+- 테스트 환경에는 `--dart-define` 값이 없으므로 `SupabaseConfig.fromEnvironment()`는
+  항상 미설정 상태다. 즉 `flutter test`는 늘 번들 Mock 데이터로 돈다.
+- 실제 원격 연결은 `docs/SUPABASE_SETUP.md`의 7절(연결 확인)로 수동 검증한다.
+
+## 11-2. 수집기 검증
+
+수집기는 Flutter 테스트와 분리되어 있다.
+
+```bash
+cd crawler
+npm test                                       # 추출·정규화·robots 규칙 (네트워크 없음)
+node src/index.js --source 10x10 --limit 5 --dry-run   # 실제 공급원에서 수집만 확인
+```
+
+- `npm test`는 네트워크를 쓰지 않는다. JSON-LD 추출, 가격이 없을 때 `null` 유지,
+  `is_demo = false` 표시, 같은 입력이 같은 id를 만드는지, robots 허용 판단을 확인한다.
+- `--dry-run`은 Supabase에 쓰지 않고 `crawler/out/<source>.json`에만 남긴다.
+- 앱 쪽 수집 상품 동작은 `test/features/products/collected_product_test.dart`에서
+  네트워크 없이 검증한다(CTA 활성 조건, 이미지 fallback).
+
 ## 12. 수동 확인 (에뮬레이터)
 
 자동 검증 후 Android API 24 에뮬레이터에서 다음을 확인한다.
@@ -194,3 +220,5 @@ flutter test
 6. 기념일 추가·삭제, 설정에서 데이터 전체 삭제
 7. 비행기 모드에서 1~2번 흐름이 동일하게 완주되는지 (모든 계산이 로컬)
 8. 시스템 글꼴 크기를 키운 상태에서 상품 카드가 깨지지 않는지
+9. Supabase 연결 상태에서 수집 상품 상세의 "상품 보러 가기"가 원본 판매 페이지를 열고,
+   데모 상품에서는 같은 버튼이 비활성으로 남는지

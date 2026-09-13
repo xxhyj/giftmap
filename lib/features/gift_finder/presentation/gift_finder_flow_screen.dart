@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../app/app_router.dart';
 import '../../../app/app_scope.dart';
+import '../../../app/app_shell.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/bottom_action_bar.dart';
@@ -25,6 +26,7 @@ class GiftFinderFlowScreen extends StatefulWidget {
 
 class _GiftFinderFlowScreenState extends State<GiftFinderFlowScreen> {
   bool _started = false;
+  ShellTabController? _tab;
 
   static const List<String> _titles = <String>[
     '어떤 상황인가요?',
@@ -39,12 +41,46 @@ class _GiftFinderFlowScreenState extends State<GiftFinderFlowScreen> {
     super.didChangeDependencies();
     if (_started) return;
     _started = true;
+
+    final AppDependencies deps = AppScope.of(context);
+    if (deps.finderController.sessionId.isEmpty) {
+      deps.finderController.startSession(entryPoint: 'finder_tab');
+    }
+
+    // 탭을 오갈 때는 진행 중인 단계와 선택값을 그대로 유지한다.
+    // 다만 추천을 끝낸 뒤 다시 들어오면 1단계부터 새로 시작한다.
+    _tab = deps.shellTab..addListener(_onTabChanged);
+  }
+
+  void _onTabChanged() {
+    if (_tab?.value != ShellTabController.finderTab) return;
     final GiftFinderController controller = AppScope.of(context)
         .finderController;
-    if (controller.sessionId.isEmpty) {
-      controller.startSession(entryPoint: 'finder_tab');
-    }
+    if (controller.status != FinderStatus.ready) return;
+    // 알림 처리 중 상태를 바꾸지 않도록 프레임 이후에 초기화한다.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) controller.startSession(entryPoint: 'finder_tab');
+    });
   }
+
+  @override
+  void dispose() {
+    _tab?.removeListener(_onTabChanged);
+    super.dispose();
+  }
+
+  /// 선택값을 모두 지우고 1단계로 돌아간다.
+  void _restart(GiftFinderController controller) {
+    controller.startSession(entryPoint: 'finder_restart');
+  }
+
+  /// 되돌릴 선택이 하나라도 있는지.
+  bool _hasSelection(GiftFinderController c) =>
+      c.step > 0 ||
+      c.situation != null ||
+      c.relationship != null ||
+      c.budget != null ||
+      c.avoidTags.isNotEmpty;
 
   bool _isStepComplete(GiftFinderController c) {
     return switch (c.step) {
@@ -89,8 +125,16 @@ class _GiftFinderFlowScreenState extends State<GiftFinderFlowScreen> {
                   ),
             title: Text(
               '0${controller.step + 1} / 0${GiftFinderController.totalSteps}',
-              style: text.labelMedium?.copyWith(color: AppColors.inkMuted),
+              style: text.labelMedium?.copyWith(color: AppColors.textSecondary),
             ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: _hasSelection(controller)
+                    ? () => _restart(controller)
+                    : null,
+                child: const Text('처음부터'),
+              ),
+            ],
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(3),
               child: LinearProgressIndicator(

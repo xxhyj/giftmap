@@ -28,7 +28,7 @@ void main() {
 
     await tester.tap(find.byType(ProductGridCard).first);
     await tester.pumpAndSettle();
-    expect(find.text('상품 보러가기'), findsOneWidget);
+    expect(find.text('상품 보러 가기'), findsOneWidget);
   });
 
   testWidgets('검색 화면에 최근 검색어가 저장되지 않는다', (WidgetTester tester) async {
@@ -43,6 +43,34 @@ void main() {
 
     expect(find.text('최근 검색어'), findsNothing);
     expect(find.text('추천 검색어'), findsOneWidget);
+  });
+
+  testWidgets('검색 화면에 카테고리 영역이 없고 추천 검색어만 남는다', (WidgetTester tester) async {
+    await bootApp(tester);
+    await _openSearch(tester);
+
+    expect(find.text('추천 검색어'), findsOneWidget);
+    expect(find.text('카테고리로 찾기'), findsNothing);
+    expect(find.text('카테고리별로 보기'), findsNothing);
+    expect(find.text('인기 카테고리'), findsNothing);
+  });
+
+  testWidgets('추천 검색어 pill을 누르면 해당 키워드로 검색한다', (WidgetTester tester) async {
+    await bootApp(tester);
+    await _openSearch(tester);
+
+    await tapText(tester, '디퓨저');
+    expect(find.textContaining('검색 결과'), findsOneWidget);
+    expect(find.byType(ProductGridCard), findsWidgets);
+  });
+
+  testWidgets('추천 검색어 pill은 두 줄을 넘지 않는다', (WidgetTester tester) async {
+    await bootApp(tester);
+    await _openSearch(tester);
+
+    // Wrap 한 줄에 들어가는 높이를 기준으로 두 줄 이내인지 확인한다.
+    final Size wrapSize = tester.getSize(find.byType(Wrap).first);
+    expect(wrapSize.height, lessThanOrEqualTo(96));
   });
 
   testWidgets('검색 결과가 없으면 빈 상태와 추천 검색어를 보여준다', (WidgetTester tester) async {

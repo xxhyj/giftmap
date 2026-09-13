@@ -5,7 +5,8 @@
 ## 1. 기술 스택
 
 - Flutter 3.47.2 (stable) / Dart 3.13.2 / Material 3 / Android API 24+
-- dependencies: `flutter`, `cupertino_icons`, `shared_preferences`(찜·최근 본 상품 로컬 저장)
+- dependencies: `flutter`, `cupertino_icons`, `shared_preferences`(찜·최근 본 상품 로컬 저장),
+  `supabase_flutter`(선택적 원격 상품 데이터)
 - dev_dependencies: `flutter_test`, `flutter_lints`
 - 상태관리·라우팅·네트워크 패키지 **없음**, code generation **없음**
 
@@ -180,6 +181,34 @@ score = 30
   `experience_voucher`는 시세 근거가 없어 `priceAvailable: false`다.
 - 파싱 실패·데이터 손상 시 예외 대신 `safeDefaultRuleset`(안전 카테고리 3개)으로 진입한다.
 
+## 8-0. 상품 데이터 출처 (번들 / Supabase)
+
+```
+main()
+ └ SupabaseBootstrap.ensureInitialized(SupabaseConfig.fromEnvironment())
+     ├ --dart-define 값 없음 → 아무것도 안 함
+     └ 값 있음 → Supabase.initialize()
+
+SupabaseBootstrap.productDataSource()
+ ├ 연결 안 됨 → BundledProductDataSource
+ └ 연결 됨   → RemoteFirstProductDataSource
+                ├ SupabaseProductDataSource (products/categories/search_suggestions)
+                └ 실패·빈 결과·6초 초과 → BundledProductDataSource
+```
+
+- Supabase `products`에는 두 종류가 섞여 있다.
+  번들에서 옮긴 데모 상품(`is_demo = true`, `source = null`)과
+  `crawler/`가 공개 페이지에서 수집한 실제 상품(`is_demo = false`, `source = '10x10'` 등)이다.
+  수집 상품만 `image_url`·`product_url`을 갖고 상세에서 원본 판매 페이지를 열 수 있다.
+- 수집은 앱 밖(Node.js + Playwright)에서 이뤄지고 서버 키를 쓴다. 앱은 관여하지 않는다.
+  자세한 내용은 `crawler/README.md`.
+- 앱은 **읽기 전용**이다. 쓰기 정책이 없어 anon 키로는 수정할 수 없다.
+- `service_role`로 보이는 키가 들어오면 연결을 거부하고 Mock으로 돌아간다.
+- 어떤 데이터를 쓰는지는 `ProductCatalog.isRemote`로 확인한다.
+- SQL 스키마와 seed는 `supabase/migrations`, `supabase/seed`에 있고,
+  seed는 `dart run tool/generate_supabase_seed.dart`로 Mock JSON에서 생성한다.
+- 설정 절차는 `docs/SUPABASE_SETUP.md`.
+
 ## 8-1. 유동적인 데이터 처리
 
 실제 상품 DB로 바뀌어도 화면이 깨지지 않도록 다음을 지킨다.
@@ -232,7 +261,9 @@ score = 30
 |---|---|---|
 | 추천 | `MockRecommendationRepository` → 로컬 엔진 | 같은 계약의 원격 구현 추가, 실패 시 로컬 폴백 |
 | 의도 파싱 | `LocalIntentParser` | 서버 파서 + 스키마 검증, `ParsedIntent` 모양 유지 |
-| 상품 | 번들 `products.json`(데모 46종) | 실제 상품 카탈로그 |
+| 상품 | 번들 `products.json` 또는 Supabase `products` | 실제 상품 카탈로그 |
+| 추천 검색어 | 번들 JSON 또는 Supabase `search_suggestions` | 동일 |
+| 홈 큐레이션 | 앱 내부 규칙 (`collections` 표는 준비만 됨) | Supabase `collections` |
 | 상품 이미지 | 카테고리별 로컬 비주얼 | 실제 상품 이미지 |
 | 가격 | Demo 시세 + 고지 | 출처·관측일을 가진 evidence |
 | 제휴 | 비활성 CTA(이동 없음) | 실제 딥링크 + 클릭 측정 |

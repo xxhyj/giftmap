@@ -6,8 +6,10 @@ import '../../domain/product.dart';
 
 /// 카테고리별 시각 정체성.
 ///
-/// 외부 이미지 URL을 쓰지 않고, asset 이미지가 없을 때도 상품 영역이
-/// 비어 보이지 않도록 카테고리 색과 아이콘으로 상품 이미지를 그린다.
+/// 번들 데모 상품은 외부 이미지 URL을 쓰지 않고, asset 이미지가 없을 때도
+/// 상품 영역이 비어 보이지 않도록 카테고리 색과 아이콘으로 그린다.
+/// 수집한 실제 상품만 공급원이 공개한 이미지 URL을 쓰고,
+/// 불러오지 못하면 같은 카테고리 비주얼로 되돌아간다.
 class ProductVisual {
   const ProductVisual(this.background, this.foreground, this.icon);
 
@@ -130,18 +132,39 @@ class ProductImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final ProductVisual visual = ProductVisual.of(product.category);
     final String? asset = product.imageAsset;
+    final String? url = product.imageUrl;
 
-    final Widget content = asset != null
-        ? Image.asset(
-            asset,
-            fit: BoxFit.cover,
-            semanticLabel: product.productName,
-          )
-        : _PaintedVisual(
-            visual: visual,
-            product: product,
-            showBrandMark: showBrandMark,
-          );
+    final Widget painted = _PaintedVisual(
+      visual: visual,
+      product: product,
+      showBrandMark: showBrandMark,
+    );
+
+    // asset → 수집한 공개 이미지 → 카테고리 비주얼 순으로 그린다.
+    final Widget content;
+    if (asset != null) {
+      content = Image.asset(
+        asset,
+        fit: BoxFit.cover,
+        semanticLabel: product.productName,
+      );
+    } else if (url != null) {
+      content = Image.network(
+        url,
+        fit: BoxFit.cover,
+        semanticLabel: product.productName,
+        // 네트워크가 느리거나 실패해도 빈 사각형을 보여주지 않는다.
+        loadingBuilder: (
+          BuildContext context,
+          Widget child,
+          ImageChunkEvent? progress,
+        ) => progress == null ? child : painted,
+        errorBuilder: (BuildContext context, Object error, StackTrace? stack) =>
+            painted,
+      );
+    } else {
+      content = painted;
+    }
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),

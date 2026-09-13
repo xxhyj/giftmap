@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../app/app_scope.dart';
@@ -32,7 +34,8 @@ class _SearchScreenState extends State<SearchScreen> {
   ProductSort _sort = ProductSort.recommended;
   bool _searching = false;
 
-  static const List<String> _suggestions = <String>[
+  /// 카탈로그(원격 또는 번들)가 추천 검색어를 주지 않을 때 쓰는 기본값.
+  static const List<String> _defaultSuggestions = <String>[
     '집들이 선물',
     '핸드크림',
     '디퓨저',
@@ -78,6 +81,9 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     final AppDependencies deps = AppScope.of(context);
     final ProductCatalog catalog = deps.catalog;
+    final List<String> suggestions = catalog.searchSuggestions.isEmpty
+        ? _defaultSuggestions
+        : catalog.searchSuggestions;
     final bool hasQuery = _query.isNotEmpty;
     final List<Product> results = catalog.search(
       _query,
@@ -121,37 +127,12 @@ class _SearchScreenState extends State<SearchScreen> {
             if (!hasQuery) ...<Widget>[
               const _Padded(child: SectionHeader(title: '추천 검색어')),
               _Padded(
-                child: ChipWrap(
-                  children: _suggestions
-                      .map(
-                        (String q) => SelectableChip(
-                          label: q,
-                          selected: false,
-                          onTap: () {
-                            _controller.text = q;
-                            _submit(q);
-                          },
-                        ),
-                      )
-                      .toList(growable: false),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              const _Padded(child: SectionHeader(title: '카테고리로 찾기')),
-              _Padded(
-                child: ChipWrap(
-                  children: catalog.categories
-                      .map(
-                        (({String id, String label}) c) => SelectableChip(
-                          label: c.label,
-                          selected: _category == c.id,
-                          onTap: () {
-                            setState(() => _category = c.id);
-                            _submit(_controller.text);
-                          },
-                        ),
-                      )
-                      .toList(growable: false),
+                child: _SuggestionPills(
+                  suggestions: suggestions,
+                  onSelected: (String q) {
+                    _controller.text = q;
+                    _submit(q);
+                  },
                 ),
               ),
             ],
@@ -179,7 +160,7 @@ class _SearchScreenState extends State<SearchScreen> {
               else if (results.isEmpty)
                 _EmptyResult(
                   query: _query,
-                  suggestions: _suggestions,
+                  suggestions: suggestions,
                   onSuggestion: (String q) {
                     _controller.text = q;
                     setState(() {
@@ -195,6 +176,133 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 추천 검색어 pill 묶음.
+///
+/// 텍스트 길이만큼만 차지하는 작은 pill을 `Wrap`으로 배치하고,
+/// 두 줄을 넘기면 넘치는 항목은 그리지 않는다.
+class _SuggestionPills extends StatelessWidget {
+  const _SuggestionPills({required this.suggestions, required this.onSelected});
+
+  final List<String> suggestions;
+  final ValueChanged<String> onSelected;
+
+  static const double _spacing = AppSpacing.sm;
+  static const int _maxLines = 2;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextStyle style =
+        Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w500,
+        ) ??
+        const TextStyle();
+
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final double maxWidth = constraints.maxWidth;
+        // 두 줄 안에 들어가는 만큼만 남긴다.
+        final List<String> visible = <String>[];
+        double lineWidth = 0;
+        int line = 1;
+
+        for (final String keyword in suggestions) {
+          final double width = math.min(
+            _pillWidth(context, keyword, style),
+            maxWidth,
+          );
+          final double needed = visible.isEmpty || lineWidth == 0
+              ? width
+              : lineWidth + _spacing + width;
+
+          if (needed <= maxWidth) {
+            lineWidth = needed;
+          } else {
+            if (line >= _maxLines) break;
+            line++;
+            lineWidth = width;
+          }
+          visible.add(keyword);
+        }
+
+        return Wrap(
+          spacing: _spacing,
+          runSpacing: _spacing,
+          children: visible
+              .map(
+                (String keyword) => _SuggestionPill(
+                  label: keyword,
+                  maxWidth: maxWidth,
+                  onTap: () => onSelected(keyword),
+                ),
+              )
+              .toList(growable: false),
+        );
+      },
+    );
+  }
+
+  static double _pillWidth(
+    BuildContext context,
+    String label,
+    TextStyle style,
+  ) {
+    final TextPainter painter = TextPainter(
+      text: TextSpan(text: label, style: style),
+      maxLines: 1,
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout();
+    return painter.width + AppSpacing.md * 2;
+  }
+}
+
+class _SuggestionPill extends StatelessWidget {
+  const _SuggestionPill({
+    required this.label,
+    required this.maxWidth,
+    required this.onTap,
+  });
+
+  final String label;
+  final double maxWidth;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: Material(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.chip),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: 7,
+              ),
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );

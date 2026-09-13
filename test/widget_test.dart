@@ -27,6 +27,14 @@ void main() {
     expect(find.text('최근 본 상품'), findsNothing);
   });
 
+  testWidgets('홈 하단에 데모 데이터 고지 문구가 없다', (WidgetTester tester) async {
+    await bootApp(tester);
+
+    await scrollHome(tester, find.text('기념일 미리 챙기기'));
+    expect(find.textContaining('실시간 가격이 아닙니다'), findsNothing);
+    expect(find.textContaining('데모 상품 데이터입니다'), findsNothing);
+  });
+
   testWidgets('위저드 5단계를 마치면 상품 추천 결과가 나온다', (WidgetTester tester) async {
     await bootApp(tester);
 
@@ -67,7 +75,7 @@ void main() {
     expect(reason, findsOneWidget);
 
     // 데모 상태라 판매 페이지로 이동하지 않는다.
-    final Finder cta = find.widgetWithText(FilledButton, '상품 보러가기');
+    final Finder cta = find.widgetWithText(FilledButton, '상품 보러 가기');
     expect(tester.widget<FilledButton>(cta).onPressed, isNull);
 
     await tester.tap(find.byTooltip('Back'));

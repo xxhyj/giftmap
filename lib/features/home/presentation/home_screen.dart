@@ -130,16 +130,6 @@ class HomeScreen extends StatelessWidget {
                 onTap: () =>
                     Navigator.of(context).push(AppRouter.anniversary()),
               ),
-              const SizedBox(height: AppSpacing.md),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.screen,
-                ),
-                child: Text(
-                  deps.productDisclaimer,
-                  style: Theme.of(context).textTheme.labelSmall,
-                ),
-              ),
             ],
           ),
         ),

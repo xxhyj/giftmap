@@ -22,13 +22,22 @@ class ProductCatalog {
     required this.products,
     required this.version,
     required this.disclaimer,
+    this.searchSuggestions = const <String>[],
   });
 
   final List<Product> products;
+
+  /// 어떤 데이터를 쓰고 있는지 나타낸다(`supabase` 또는 번들 카탈로그 버전).
   final String version;
 
   /// 데모 데이터 고지 문구.
   final String disclaimer;
+
+  /// 검색 화면의 추천 검색어. 비어 있으면 화면이 기본 목록을 쓴다.
+  final List<String> searchSuggestions;
+
+  /// 원격(Supabase)에서 받아온 카탈로그인지.
+  bool get isRemote => version == 'supabase';
 
   bool get isEmpty => products.isEmpty;
 

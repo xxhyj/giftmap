@@ -23,17 +23,37 @@ GiftMap(선물지도)은 기념일·생일처럼 선물을 골라야 하는 순�
 - 로컬(인메모리) 추천 기록과 기념일
 - 로컬 키워드 기반 자연어 파서
 
+상품 수집기 `crawler/` (앱 밖, 선택):
+- Node.js + Playwright로 공급원의 **공개 상품 페이지**에서 상품명·가격·이미지 URL·상품 URL을
+  읽어 Supabase `products`에 upsert한다. Flutter 앱과 분리된 프로그램이며 단독 실행된다.
+- JSON-LD의 `schema.org/Product`/`Offer`를 우선 쓰고, 없으면 공개 메타데이터를 쓴다.
+- `robots.txt`가 허용한 경로만 방문한다. 로그인·CAPTCHA·접근 제한은 **우회하지 않는다**.
+- 수집 상품은 `is_demo = false`로 데모 상품과 구분하고, 상세에서 원본 판매 페이지를 연다.
+- Supabase 키(`service_role`)는 `crawler/.env` 환경변수로만 받는다. 앱에는 넣지 않는다.
+- 공급원 추가는 `crawler/src/adapters/`에 어댑터를 더하는 방식이다. 자세한 내용은 `crawler/README.md`.
+
+Supabase(선택):
+- 상품·카테고리·추천 검색어를 Supabase에서 **읽기 전용**으로 불러올 수 있다.
+- `--dart-define`으로 `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY`를 줄 때만 켜지고,
+  없거나 실패하면 번들 Mock 데이터로 되돌아간다(`RemoteFirstProductDataSource`).
+- 설정 방법은 `docs/SUPABASE_SETUP.md` 참고.
+
 제외(이후 별도 명령으로 진행):
 - OpenAI·ChatGPT·LLM 등 외부 AI API
-- 서버, Supabase, Firebase, PostgreSQL, REST/GraphQL, 네트워크 요청
-- 실제 상품 데이터·실시간 가격·재고·실제 제휴 링크·외부 이미지 URL
+- 로그인·사용자 동기화, 앱에서 Supabase에 쓰기
+- Firebase, 직접 만든 서버(앱이 호출하는 API 서버), REST/GraphQL API
+  (`crawler/`는 앱이 호출하지 않는 오프라인 수집 도구라 여기 해당하지 않는다)
+- 실시간 가격·재고·실제 제휴 링크
+  (수집한 실제 상품의 가격·이미지 URL·판매 URL은 수집 시점의 공개 정보다)
 - 로그인/회원가입/결제/장바구니/배송
 - Push Notification, 카메라, 관리자 CMS
 
 ## 3. 절대 금지
 
-- 외부 AI/API/서버/DB 코드, 그리고 "나중을 위한" 빈 API client·서버 스텁 작성
+- 외부 AI API 코드, 그리고 "나중을 위한" 빈 API client·서버 스텁 작성
 - API Key·Secret·인증정보를 앱 코드나 asset에 포함
+  (Supabase 값은 `--dart-define`으로만 전달한다)
+- Supabase `service_role`/`secret` 키를 앱에 넣기
 - 새 dependency 임의 추가 (특히 AI/API/서버/DB 관련), code generation 도입
 - `flutter clean`, `git reset --hard`, 프로젝트 삭제·재생성
 - 기존 기능 삭제나 주석 처리로 오류 숨기기
@@ -47,6 +67,8 @@ GiftMap(선물지도)은 기념일·생일처럼 선물을 골라야 하는 순�
 - 의존 방향은 presentation → application → domain, data는 domain 계약을 구현한다
 - 상태 관리는 `ChangeNotifier` + `InheritedWidget`(`AppScope`)만 사용한다. 상태관리 패키지 금지
 - 로컬 저장은 `IdListStorage` 계약을 통해서만 접근한다(현재 구현: shared_preferences / 인메모리)
+- 상품 데이터는 `ProductDataSource` 계약으로만 읽는다
+  (번들 / Supabase / 원격 우선+fallback 세 구현체)
 - 라우팅은 `Navigator` + `MaterialPageRoute` (`lib/app/app_router.dart`). 라우팅 패키지 금지
 - 하단 탭은 홈 / 카테고리 / 선물추천 / 찜 / 기록 5개다. 검색 탭은 두지 않는다
   (검색은 홈 최상단 검색창에서 들어간다)
@@ -99,8 +121,11 @@ riskLevel == avoid    제외
 ## 6. 데이터 원칙
 
 - 카테고리·위험 규칙·검색어 템플릿·상품 카탈로그는 `lib/data/*.json` 번들 asset이다
-- 상품은 전부 `isDemo: true`인 **데모 데이터**이며, 실제 브랜드·상품·시세가 아니다
-- 상품 이미지는 외부 URL을 쓰지 않는다. asset이 없으면 카테고리별 로컬 비주얼을 그린다
+- 번들 상품은 전부 `isDemo: true`인 **데모 데이터**이며, 실제 브랜드·상품·시세가 아니다
+- Supabase에는 `crawler/`가 수집한 `isDemo: false` 실제 상품이 함께 들어갈 수 있다.
+  실제 상품에는 DEMO 배지를 붙이지 않고, 상세의 단일 CTA로 원본 판매 페이지를 연다
+- 번들 데모 상품 이미지는 외부 URL을 쓰지 않는다. asset이 없으면 카테고리별 로컬 비주얼을 그린다.
+  수집한 실제 상품만 공급원이 공개한 이미지 URL을 쓰고, 실패하면 같은 비주얼로 되돌아간다
 - 가격은 **Demo/Mock 시세**이며 UI에 항상 고지를 표시한다
 - 시세 근거가 없으면 가격 필드는 `null`이고 화면에는 "가격 확인 필요"로 표시한다
 - 번들 데이터가 손상되면 예외를 던지지 않고 안전한 기본 카테고리 세트로 진입한다

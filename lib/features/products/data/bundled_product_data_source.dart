@@ -5,10 +5,17 @@ import 'package:flutter/services.dart';
 import '../domain/product.dart';
 import '../domain/product_catalog.dart';
 
-/// 상품 카탈로그 제공자. 현재 구현은 번들 JSON 하나뿐이다.
+/// 상품 카탈로그 제공자.
+///
+/// 구현체: [BundledProductDataSource](로컬 JSON),
+/// `SupabaseProductDataSource`(원격), `RemoteFirstProductDataSource`(원격 우선).
 abstract interface class ProductDataSource {
   Future<ProductCatalog> load();
 }
+
+/// 데모 데이터 고지 문구 기본값.
+const String defaultProductDisclaimer =
+    '데모 상품 데이터입니다. 실제 판매 상품이나 실시간 가격이 아닙니다.';
 
 /// `lib/data/products.json`을 읽어 카탈로그를 만든다.
 ///
@@ -51,6 +58,7 @@ final class BundledProductDataSource implements ProductDataSource {
         }
       }
     }
+    final Object? rawSuggestions = json['searchSuggestions'];
     return ProductCatalog(
       products: List<Product>.unmodifiable(products),
       version: json['catalogVersion'] is String
@@ -58,7 +66,15 @@ final class BundledProductDataSource implements ProductDataSource {
           : 'unknown',
       disclaimer: json['disclaimer'] is String
           ? json['disclaimer']! as String
-          : '데모 상품 데이터입니다. 실제 판매 상품이나 실시간 가격이 아닙니다.',
+          : defaultProductDisclaimer,
+      searchSuggestions: rawSuggestions is List
+          ? List<String>.unmodifiable(
+              rawSuggestions
+                  .map((Object? e) => e?.toString())
+                  .nonNulls
+                  .where((String keyword) => keyword.trim().isNotEmpty),
+            )
+          : const <String>[],
     );
   }
 }
@@ -67,5 +83,5 @@ final class BundledProductDataSource implements ProductDataSource {
 final ProductCatalog emptyCatalog = ProductCatalog(
   products: const <Product>[],
   version: 'empty',
-  disclaimer: '데모 상품 데이터입니다. 실제 판매 상품이나 실시간 가격이 아닙니다.',
+  disclaimer: defaultProductDisclaimer,
 );

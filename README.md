@@ -10,8 +10,29 @@
 
 ```bash
 flutter pub get
-flutter run          # Android API 24+
+flutter run          # Android API 24+ · 번들 Mock 데이터로 동작
+
+# Supabase에서 상품을 불러오려면(선택)
+flutter run   --dart-define=SUPABASE_URL=https://<프로젝트>.supabase.co   --dart-define=SUPABASE_PUBLISHABLE_KEY=<publishable key>
 ```
+
+설정 절차는 [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md)에 있다.
+값을 주지 않거나 연결에 실패하면 자동으로 번들 Mock 데이터로 되돌아간다.
+
+### 실제 상품 수집(선택)
+
+`crawler/`는 공급원의 공개 상품 페이지에서 상품명·가격·이미지 URL·상품 URL을 읽어
+Supabase에 올리는 Node.js 프로그램이다. 앱과 분리되어 있고 단독으로 실행된다.
+
+```bash
+cd crawler
+npm install
+npm run install:browser                       # Playwright Chromium
+node src/index.js --source 10x10 --dry-run    # 수집만 확인
+npm run collect                               # 수집 + Supabase upsert(.env 필요)
+```
+
+자세한 내용과 공급원 추가 방법은 [crawler/README.md](crawler/README.md)에 있다.
 
 ## 검증
 
@@ -67,21 +88,27 @@ lib/
 - 카테고리 가격은 **데모 시세**이며 실시간 판매가가 아니다. UI 전반에 이 고지가 붙는다.
 - 시세 근거가 없는 카테고리는 가격 필드가 `null`이고 화면에는 "가격 확인 필요"로 표시된다.
   `null`을 0원으로 표시하지 않는다.
-- 상품 46종은 전부 데모 데이터이며 실제 브랜드·상품이 아니다. 화면에 DEMO 배지와 고지를 표시한다.
-- 상품 이미지는 외부 URL을 쓰지 않는다. asset이 없으면 카테고리별 로컬 비주얼을 그린다.
+- 번들 상품 46종은 전부 데모 데이터이며 실제 브랜드·상품이 아니다.
+  화면에 DEMO 배지와 고지를 표시한다(`isDemo == true`).
+- Supabase에는 `crawler/`가 수집한 실제 상품(`isDemo == false`)이 함께 들어 있다.
+  실제 상품에는 DEMO 배지가 붙지 않고, 상세에서 원본 판매 페이지로 이동할 수 있다.
+- 데모 상품 이미지는 외부 URL을 쓰지 않는다. asset이 없으면 카테고리별 로컬 비주얼을 그린다.
+  수집한 실제 상품만 공급원이 공개한 이미지 URL을 쓰고, 불러오지 못하면 같은 비주얼로 되돌아간다.
 - 찜과 최근 본 상품은 기기 로컬에 저장되어 앱을 다시 켜도 유지된다.
 - 추천 기록과 기념일은 인메모리로 보관한다. 앱을 다시 켜면 비워진다.
 - 상품 수·카테고리 수를 코드에 고정하지 않는다. 모든 화면이 카탈로그 길이를 따른다.
 - 브랜드·가격·이미지·판매 URL이 없어도 화면이 깨지지 않는다
   (가격이 없으면 "가격 확인 필요", URL이 없으면 구매 CTA 비활성).
-- 상품 상세의 "상품 보러가기"는 데모 상태로 비활성화되어 있고, 이유를 버튼 위에 설명한다.
+- 상품 상세의 단일 CTA "상품 보러 가기"는 수집한 실제 상품에서만 활성화되어
+  원본 판매 페이지를 외부 브라우저로 연다. 데모 상품에서는 비활성이고 이유를 버튼 위에 설명한다.
 - 자연어 검색은 외부 AI 없이 로컬 키워드 파서만 사용하며, 신뢰도가 낮은 조건은
   사용자가 직접 고르도록 되묻는다.
 
 ## 다음 단계
 
-`RecommendationRepository`와 `ProductDataSource` 계약만 유지되어 있어,
-이후 실제 상품 DB 구현을 같은 계약으로 추가하면 된다.
+`RecommendationRepository`와 `ProductDataSource` 계약이 유지되어 있어,
+데이터 출처가 늘어나도 화면 코드는 바뀌지 않는다.
+수집 공급원을 늘리려면 `crawler/src/adapters/`에 어댑터를 추가한다.
 주입 지점은 `lib/app/giftmap_app.dart`의 `_bootstrap()` 한 곳이다.
 
 ## 디자인 되돌리기
