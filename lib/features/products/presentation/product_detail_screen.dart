@@ -114,7 +114,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     const SizedBox(height: AppSpacing.md),
                     ProductPrice(product: product, large: true),
                     const SizedBox(height: AppSpacing.xs),
-                    Text(deps.productDisclaimer, style: text.labelSmall),
+                    // 데모 상품에만 데모 고지를 붙인다.
+                    // 수집한 실제 상품에는 "언제 확인한 값인지"를 알린다.
+                    Text(
+                      product.isDemo
+                          ? deps.productDisclaimer
+                          : _verifiedNotice(product),
+                      style: text.labelSmall,
+                    ),
                     const SizedBox(height: AppSpacing.lg),
                     Text(product.description, style: text.bodyLarge),
                     const SizedBox(height: AppSpacing.lg),
@@ -225,6 +232,26 @@ class _ReasonBlock extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 수집한 실제 상품에 붙이는 안내.
+///
+/// 가격·재고는 수집 시점의 공개 정보라 판매처에서 달라질 수 있다.
+/// 언제 확인한 값인지 밝혀 두면 사용자가 판단할 수 있다.
+String _verifiedNotice(Product product) {
+  final DateTime? verified = product.lastVerifiedAt;
+  final String where = product.sourceLabel ?? '판매처';
+  if (verified == null) {
+    return '$where에 공개된 정보예요. 가격과 재고는 판매처에서 다시 확인해 주세요.';
+  }
+  final Duration ago = DateTime.now().difference(verified);
+  final String when = switch (ago.inDays) {
+    <= 0 => '오늘',
+    1 => '어제',
+    final int days when days < 7 => '$days일 전',
+    final int days => '${days ~/ 7}주 전',
+  };
+  return '$when $where에서 확인한 정보예요. 가격과 재고는 판매처 기준이에요.';
 }
 
 class _InfoRow extends StatelessWidget {

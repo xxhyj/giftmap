@@ -16,12 +16,38 @@ import { fileURLToPath } from 'node:url';
 import { guessCategory } from './normalize.js';
 import { createServiceClient, readEnvCredentials } from './supabase.js';
 
+/** 근거가 없을 때 두는 기본 분류. `normalize.js` 와 같아야 한다. */
+const DEFAULT_CATEGORY = 'hobby';
+
+/**
+ * "이 분야가 맞다"는 근거가 반드시 있어야 하는 분류.
+ *
+ * 사용자가 이 분류를 고르면 그 분야 상품을 기대한다. 근거 없이 들어와 있으면
+ * 예전 규칙이 잘못 넣은 것이므로 기본 분류로 내린다.
+ * 반대로 생활용품·데스크·문구처럼 포괄적인 분류는 근거가 없어도 그대로 둔다.
+ * 규칙이 모르는 낱말이라고 해서 멀쩡한 분류를 흔들지 않기 위해서다.
+ */
+const STRICT_CATEGORIES = new Set([
+  'book',
+  'music',
+  'appliance',
+  'perfume',
+  'beauty',
+  'dessert',
+  'tea_coffee',
+  'shoes',
+  'bag',
+  'fashion_clothing',
+  'candle',
+]);
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /** `normalize.js` 와 같은 목록. 사람 선물이 아닌 상품을 걸러낸다. */
 const NOT_A_GIFT = [
   '강아지', '고양이', '반려견', '반려묘', '반려동물', '캣타워', '스크래쳐',
-  '노즈워크', '사료', '펠리웨이', '캣닢', '캣닙',
+  '노즈워크', '사료', '펠리웨이', '캣닢', '캣닙', '애견', '애묘', '배변',
+  '하네스', '산책줄', '펫드라이', '냥이', '멍멍이',
 ];
 
 function loadDotEnv() {
@@ -65,19 +91,26 @@ async function main() {
   const changes = [];
   const hide = [];
   for (const row of rows) {
-    const text = `${row.sub_category ?? ''} ${row.product_name}`.toLowerCase();
-    if (NOT_A_GIFT.some((word) => text.includes(word))) {
+    const whole = `${row.sub_category ?? ''} ${row.product_name}`.toLowerCase();
+    if (NOT_A_GIFT.some((word) => whole.includes(word))) {
       if (row.is_active) hide.push(row);
       continue;
     }
     // 수집할 때와 같은 순서: 공급원 분류 → 상품명·키워드.
+    const text = `${row.product_name} ${(row.recommendation_keywords ?? []).join(' ')}`;
     const next =
-      guessCategory(row.sub_category ?? '', null) ??
-      guessCategory(
-        `${row.product_name} ${(row.recommendation_keywords ?? []).join(' ')}`,
-        null,
-      );
-    if (next && next !== row.category_id) changes.push({ row, next });
+      guessCategory(row.sub_category ?? '', null) ?? guessCategory(text, null);
+
+    if (next) {
+      if (next !== row.category_id) changes.push({ row, next });
+      continue;
+    }
+
+    // 근거가 없는데 특정 분야로 박혀 있으면 예전 규칙이 잘못 넣은 것이다
+    // ("캠핑 폴딩 테이블"이 '책'에 있는 식). 그때만 기본 분류로 내린다.
+    if (STRICT_CATEGORIES.has(row.category_id)) {
+      changes.push({ row, next: DEFAULT_CATEGORY });
+    }
   }
 
   console.log(`대상 ${rows.length}건 · 분류 변경 ${changes.length}건 · 화면에서 내릴 상품 ${hide.length}건`);

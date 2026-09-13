@@ -49,13 +49,25 @@ class CategoryGroup {
       id: 'fashion',
       label: '패션·잡화',
       description: '가지고 다니며 쓰는 선물',
-      categoryIds: <String>['fashion_accessory', 'wallet'],
+      categoryIds: <String>[
+        'fashion_accessory',
+        'wallet',
+        'fashion_clothing',
+        'bag',
+        'shoes',
+      ],
     ),
     CategoryGroup(
       id: 'hobby',
       label: '취미·라이프스타일',
       description: '취향을 응원하는 선물',
-      categoryIds: <String>['hobby'],
+      categoryIds: <String>['hobby', 'book', 'music'],
+    ),
+    CategoryGroup(
+      id: 'appliance',
+      label: '가전·디지털',
+      description: '있으면 매일 편해지는 선물',
+      categoryIds: <String>['appliance'],
     ),
   ];
 
