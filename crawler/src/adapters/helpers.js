@@ -185,3 +185,34 @@ export function searchListings(buildUrl, keywords = GIFT_KEYWORDS, { pages = 1 }
   }
   return { urls, hintOf: (url) => hints.get(url) ?? null };
 }
+
+/**
+ * sitemap 에서 상품 주소를 읽는다.
+ *
+ * 공급원이 스스로 공개한 주소 목록이라 목록 화면을 훑는 것보다 정확하다.
+ * 한쪽에 몰리지 않도록 일정 간격으로 건너뛰며 고르고, 같은 sitemap 이면
+ * 항상 같은 순서가 나오도록 정렬한다.
+ */
+export async function sitemapProductUrls(
+  sitemapUrl,
+  { match, limit = 100, userAgent } = {},
+) {
+  const res = await fetch(sitemapUrl, {
+    headers: userAgent ? { 'user-agent': userAgent } : undefined,
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) throw new Error(`sitemap 응답 ${res.status}`);
+
+  const xml = await res.text();
+  const all = [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)]
+    .map((found) => found[1])
+    .filter((url) => match.test(url));
+  all.sort();
+  if (all.length <= limit) return all;
+
+  // 앞쪽만 쓰면 같은 분류가 몰리므로 전체에서 고르게 뽑는다.
+  const stride = Math.floor(all.length / limit);
+  const out = [];
+  for (let i = 0; out.length < limit && i < all.length; i += stride) out.push(all[i]);
+  return out;
+}

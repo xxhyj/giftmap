@@ -67,6 +67,8 @@ Supabase 키가 없거나 업로드가 실패해도 DB의 기존 상품은 그�
 | `10x10` | 텐바이텐 | `robots.txt`가 ClaudeBot 계열에 `/shopping/`, `/category/`, `/search/` 허용. 상세에 `Product`/`Offer` JSON-LD 제공. 목록의 breadcrumb로 하위 분류까지 넓힌다 |
 | `musinsa` | 무신사 | `robots.txt`의 `ClaudeBot` 포함 그룹에 상품 경로 허용. `Product`/`Offer` JSON-LD와 재고 제공 |
 | `aladin` | 알라딘 | `robots.txt`의 `ClaudeBot` 포함 그룹에 `/shop/` 허용. `Product`/`Offer` JSON-LD 제공 |
+| `daiso` | 다이소몰 | `robots.txt`가 `ClaudeBot`에 `/pd/` 허용. sitemap으로 상품 약 2만 건을 공개하고 JSON-LD에 이름·브랜드·가격·재고·이미지·분류가 모두 있다. 생활·주방·청소·문구·뷰티를 넓게 덮는다 |
+| `29cm` | 29CM | `robots.txt`의 `*` 그룹이 상품·검색 경로 허용. 검색 결과가 상품 링크를 그대로 노출하고 상세에 `Product` JSON-LD가 있다(이미지는 `og:image`로 보완). 향수·뷰티·패션·리빙을 덮는다 |
 
 ### 검토했으나 제외한 곳
 

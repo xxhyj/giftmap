@@ -5,6 +5,7 @@
  *   node src/index.js                                        # 모든 공급원
  *   node src/index.js --source 10x10 --limit 300             # 한 공급원만
  *   node src/index.js --source all --limit 500 --rounds 8    # 전부, 넓게
+ *   node src/index.js --source daiso,29cm --limit 400        # 여러 공급원만
  *   node src/index.js --limit 5 --dry-run                    # 수집만 하고 파일로 저장
  *   node src/index.js --headed                               # 브라우저 창을 띄워 확인
  *
@@ -277,8 +278,14 @@ async function main() {
   loadDotEnv();
   const args = parseArgs(process.argv.slice(2));
 
+  // `all` 또는 콤마로 구분한 공급원 목록(`daiso,29cm`)을 받는다.
   const targets =
-    args.source === 'all' ? allAdapters : [adapterById(args.source)].filter(Boolean);
+    args.source === 'all'
+      ? allAdapters
+      : args.source
+          .split(',')
+          .map((id) => adapterById(id.trim()))
+          .filter(Boolean);
   if (targets.length === 0) {
     console.error(`알 수 없는 공급원: ${args.source} (사용 가능: all, ${adapterIds.join(', ')})`);
     process.exitCode = 1;
@@ -323,7 +330,9 @@ async function main() {
 
   const outDir = path.join(ROOT, 'out');
   await mkdir(outDir, { recursive: true });
-  const outFile = path.join(outDir, 'products.json');
+  // 여러 수집을 동시에 돌려도 결과가 서로 덮이지 않게 이름을 나눈다.
+  const outName = args.source === 'all' ? 'products' : args.source.replace(/[^\w.-]+/g, '_');
+  const outFile = path.join(outDir, `${outName}.json`);
   await writeFile(
     outFile,
     JSON.stringify(

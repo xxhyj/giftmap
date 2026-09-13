@@ -1,4 +1,6 @@
 import { aladinAdapter } from './aladin.js';
+import { c29cmAdapter } from './c29cm.js';
+import { daisoAdapter } from './daiso.js';
 import { musinsaAdapter } from './musinsa.js';
 import { tenByTenAdapter } from './tenbyten.js';
 
@@ -12,7 +14,13 @@ import { tenByTenAdapter } from './tenbyten.js';
  *
  * 목록 렌더·링크 수집·페이지 넘기기는 `helpers.js` 를 함께 쓰면 된다.
  */
-export const adapters = [tenByTenAdapter, musinsaAdapter, aladinAdapter];
+export const adapters = [
+  tenByTenAdapter,
+  musinsaAdapter,
+  aladinAdapter,
+  daisoAdapter,
+  c29cmAdapter,
+];
 
 export function adapterById(id) {
   return adapters.find((adapter) => adapter.id === id) ?? null;
