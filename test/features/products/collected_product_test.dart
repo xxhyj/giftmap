@@ -60,6 +60,18 @@ void main() {
     expect(find.byType(ProductImage), findsOneWidget);
   });
 
+  testWidgets('품절이 확인된 상품에는 품절 표시가 붙는다', (WidgetTester tester) async {
+    final Product soldOut = Product.fromJson(<String, Object?>{
+      ..._collectedJson(productUrl: 'https://example.test/p/1'),
+      'inStock': false,
+    });
+    final Product unknown = Product.fromJson(_collectedJson());
+
+    expect(soldOut.isSoldOut, isTrue);
+    // 공급원이 재고를 알려주지 않으면 품절로 단정하지 않는다.
+    expect(unknown.isSoldOut, isFalse);
+  });
+
   testWidgets('이미지 URL이 있으면 원격 이미지를 그린다', (WidgetTester tester) async {
     final Product product = Product.fromJson(
       _collectedJson(imageUrl: 'https://example.test/a.jpg'),

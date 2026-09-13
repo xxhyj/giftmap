@@ -210,6 +210,12 @@ class ProductGridCard extends StatelessWidget {
                       top: AppSpacing.sm,
                       child: DemoBadge(compact: true),
                     ),
+                  if (product.isSoldOut)
+                    const Positioned(
+                      left: AppSpacing.sm,
+                      bottom: AppSpacing.sm,
+                      child: SoldOutBadge(compact: true),
+                    ),
                 ],
               ),
             ),

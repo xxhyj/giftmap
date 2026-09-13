@@ -108,6 +108,69 @@ void main() {
     expect(first, second);
   });
 
+  test('품절이 확인된 상품은 목록 뒤로 밀린다', () {
+    final ProductCatalog catalog = ProductCatalog(
+      products: <Product>[
+        Product.fromJson(<String, Object?>{
+          'id': 'sold',
+          'productName': '품절 상품',
+          'category': 'living',
+          'categoryLabel': '생활용품',
+          'price': 1000,
+          'isDemo': false,
+          'source': 'daiso',
+          'inStock': false,
+          'occasions': <String>['birthday', 'thanks', 'housewarming'],
+        }),
+        Product.fromJson(<String, Object?>{
+          'id': 'ok',
+          'productName': '판매 중 상품',
+          'category': 'living',
+          'categoryLabel': '생활용품',
+          'price': 9000,
+          'isDemo': false,
+          'source': 'daiso',
+          'inStock': true,
+          'occasions': <String>['birthday'],
+        }),
+      ],
+      version: 'test',
+      disclaimer: '',
+    );
+
+    // 싸고 커버리지가 넓어도 품절이면 뒤로 간다.
+    expect(catalog.search('', sort: ProductSort.priceLow).first.id, 'ok');
+    expect(catalog.search('').first.id, 'ok');
+  });
+
+  test('재고를 모르는 상품은 밀지 않는다', () {
+    final ProductCatalog catalog = ProductCatalog(
+      products: <Product>[
+        Product.fromJson(<String, Object?>{
+          'id': 'unknown',
+          'productName': '재고 모름',
+          'category': 'living',
+          'categoryLabel': '생활용품',
+          'price': 1000,
+          'isDemo': false,
+        }),
+        Product.fromJson(<String, Object?>{
+          'id': 'instock',
+          'productName': '판매 중',
+          'category': 'living',
+          'categoryLabel': '생활용품',
+          'price': 9000,
+          'isDemo': false,
+          'inStock': true,
+        }),
+      ],
+      version: 'test',
+      disclaimer: '',
+    );
+
+    expect(catalog.search('', sort: ProductSort.priceLow).first.id, 'unknown');
+  });
+
   test('상품이 적으면 있는 만큼만 돌려준다', () {
     final ProductCatalog small = ProductCatalog(
       products: <Product>[

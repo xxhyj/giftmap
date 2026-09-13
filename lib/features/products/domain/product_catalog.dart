@@ -193,6 +193,10 @@ class ProductCatalog {
   List<Product> _sorted(List<Product> list, ProductSort sort) {
     final List<Product> copy = List<Product>.of(list);
     copy.sort((Product a, Product b) {
+      // 품절이 확인된 상품은 어떤 정렬에서든 뒤로 보낸다.
+      // 숨기지는 않는다. 공급원이 재고를 알려주지 않은 상품(null)은 그대로 둔다.
+      if (a.isSoldOut != b.isSoldOut) return a.isSoldOut ? 1 : -1;
+
       final int primary = switch (sort) {
         ProductSort.recommended => _coverage(b).compareTo(_coverage(a)),
         // 가격을 모르는 상품은 정렬에서 뒤로 보낸다.

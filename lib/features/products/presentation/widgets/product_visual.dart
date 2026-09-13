@@ -235,6 +235,38 @@ class _PaintedVisual extends StatelessWidget {
   }
 }
 
+/// 품절이 확인된 상품에 붙이는 표시.
+///
+/// 재고를 알려주지 않는 공급원이 있어 "품절 아님"은 단정하지 않는다.
+/// 공급원이 품절이라고 알려준 상품에만 붙인다.
+class SoldOutBadge extends StatelessWidget {
+  const SoldOutBadge({this.compact = false, super.key});
+
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 6 : AppSpacing.sm,
+        vertical: compact ? 2 : 4,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.ink.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(AppRadius.chip),
+      ),
+      child: Text(
+        '품절',
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: Colors.white,
+          fontSize: compact ? 10 : 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
 /// 데모 데이터임을 알리는 작은 표시.
 class DemoBadge extends StatelessWidget {
   const DemoBadge({this.compact = false, super.key});
