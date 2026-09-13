@@ -56,6 +56,14 @@ void main() {
         .where((Product p) => p.category == 'stationery')
         .length;
     expect(stationery, lessThanOrEqualTo(6));
+
+    // 상품이 많은 출처가 앞자리를 독차지하지 않는다.
+    // (분류만 섞고 출처를 섞지 않으면 여기서 10x10 이 12칸을 다 가져간다)
+    final int fromBiggest = mixed
+        .where((Product p) => p.source == '10x10')
+        .length;
+    expect(fromBiggest, lessThanOrEqualTo(8));
+    expect(mixed.take(3).map((Product p) => p.source).toSet().length, 3);
   });
 
   test('인기 상품도 출처를 섞어 보여 준다', () {

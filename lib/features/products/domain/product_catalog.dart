@@ -134,27 +134,54 @@ class ProductCatalog {
   /// 한 출처·한 분류가 목록을 뒤덮지 않도록 번갈아 뽑는다.
   ///
   /// 수집 상품은 공급원마다 양이 크게 달라(문구가 많은 곳 하나가 대부분)
-  /// 그대로 정렬하면 홈이 한쪽으로 쏠린다. `출처+분류`를 묶음으로 보고
-  /// 묶음마다 한 개씩 돌아가며 채운다. 묶음 순서와 묶음 안 순서를 모두
-  /// 고정하므로 같은 카탈로그면 항상 같은 결과가 나온다.
+  /// 그대로 정렬하면 목록이 한쪽으로 쏠린다.
+  ///
+  /// 두 단계로 섞는다.
+  /// 1. 출처 안에서 분류를 번갈아 뽑아 출처별 줄을 만든다.
+  /// 2. 그 줄들을 출처끼리 번갈아 가며 합친다.
+  ///
+  /// 출처를 바깥 고리에 두는 것이 중요하다. 분류를 바깥에 두면 상품이 많은
+  /// 출처가 모든 분류를 선점해 앞자리를 다 가져간다.
+  /// 순서가 모두 고정이라 같은 카탈로그면 항상 같은 결과가 나온다.
   static List<Product> interleave(List<Product> items, {int? limit}) {
-    final Map<String, List<Product>> groups = <String, List<Product>>{};
+    // 1단계: 출처 → 분류 → 상품
+    final Map<String, Map<String, List<Product>>> bySource =
+        <String, Map<String, List<Product>>>{};
     for (final Product product in items) {
-      final String key = '${product.source ?? 'bundle'}|${product.category}';
-      groups.putIfAbsent(key, () => <Product>[]).add(product);
+      final String source = product.source ?? 'bundle';
+      bySource
+          .putIfAbsent(source, () => <String, List<Product>>{})
+          .putIfAbsent(product.category, () => <Product>[])
+          .add(product);
     }
 
-    final List<String> keys = groups.keys.toList()..sort();
+    // 출처마다 분류를 번갈아 뽑아 한 줄로 만든다.
+    final List<List<Product>> lines = <List<Product>>[];
+    for (final String source in bySource.keys.toList()..sort()) {
+      final Map<String, List<Product>> byCategory = bySource[source]!;
+      final List<String> categories = byCategory.keys.toList()..sort();
+      final List<Product> line = <Product>[];
+      for (int round = 0; ; round += 1) {
+        bool tookAny = false;
+        for (final String category in categories) {
+          final List<Product> group = byCategory[category]!;
+          if (round >= group.length) continue;
+          line.add(group[round]);
+          tookAny = true;
+        }
+        if (!tookAny) break;
+      }
+      lines.add(line);
+    }
+
+    // 2단계: 출처별 줄을 번갈아 합친다.
     final List<Product> out = <Product>[];
     final int max = limit ?? items.length;
-
-    // 묶음이 빌 때까지 한 바퀴씩 돈다.
     for (int round = 0; out.length < max; round += 1) {
       bool tookAny = false;
-      for (final String key in keys) {
-        final List<Product> group = groups[key]!;
-        if (round >= group.length) continue;
-        out.add(group[round]);
+      for (final List<Product> line in lines) {
+        if (round >= line.length) continue;
+        out.add(line[round]);
         tookAny = true;
         if (out.length >= max) break;
       }

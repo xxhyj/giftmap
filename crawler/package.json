@@ -9,7 +9,8 @@
     "collect": "node src/index.js",
     "collect:dry": "node src/index.js --dry-run",
     "test": "node --test test/*.test.js",
-    "verify": "node src/verify.js"
+    "verify": "node src/verify.js",
+    "report": "node src/report.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",
