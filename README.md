@@ -19,20 +19,37 @@ flutter run   --dart-define=SUPABASE_URL=https://<프로젝트>.supabase.co   --
 설정 절차는 [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md)에 있다.
 값을 주지 않거나 연결에 실패하면 자동으로 번들 Mock 데이터로 되돌아간다.
 
-### 실제 상품 수집(선택)
+### 실제 상품 수집
 
-`crawler/`는 공급원의 공개 상품 페이지에서 상품명·가격·이미지 URL·상품 URL을 읽어
-Supabase에 올리는 Node.js 프로그램이다. 앱과 분리되어 있고 단독으로 실행된다.
+`crawler/`는 공급원의 공개 상품 페이지에서 상품명·브랜드·가격·이미지 URL·원본 URL·
+카테고리·품절 여부를 읽어 Supabase에 올리는 Node.js 프로그램이다.
+앱과 분리되어 있고 단독으로 실행된다.
 
 ```bash
 cd crawler
 npm install
-npm run install:browser                       # Playwright Chromium
-node src/index.js --source 10x10 --dry-run    # 수집만 확인
-npm run collect                               # 수집 + Supabase upsert(.env 필요)
+npm run install:browser                                  # Playwright Chromium
+node src/index.js --limit 5 --dry-run                    # 수집만 확인
+npm run collect                                          # 수집 + upsert(.env 필요)
+node src/index.js --source all --limit 700 --rounds 8    # 넓게 수집
 ```
 
-자세한 내용과 공급원 추가 방법은 [crawler/README.md](crawler/README.md)에 있다.
+현재 공급원은 텐바이텐·무신사·알라딘이다. robots.txt가 허용한 경로만 방문하고
+로그인·CAPTCHA·접근 제한은 우회하지 않는다. 공급원 추가 방법과 검토했으나
+제외한 사이트 목록은 [crawler/README.md](crawler/README.md)에 있다.
+
+### 추천 (서버 AI → 로컬 엔진)
+
+Supabase Edge Function `recommend`가 조건에 맞는 실제 상품 후보를 추린 뒤
+OpenAI에게 **그 후보 중에서만** 3~5개를 고르게 한다. 모델은 상품·가격·URL을
+만들 수 없고 고를 수만 있으며, 앱은 받은 상품 id를 카탈로그에서 다시 확인한다.
+호출이 실패하거나 고른 상품이 3개 미만이면 로컬 추천 엔진이 그대로 맡는다.
+`OPENAI_API_KEY`는 함수 시크릿으로만 존재하고 앱에는 들어가지 않는다.
+
+```bash
+cp supabase/.env.example supabase/.env.local   # 값 채우기(커밋되지 않음)
+npx supabase functions deploy recommend --project-ref <프로젝트 ref>
+```
 
 ## 검증
 
@@ -88,10 +105,11 @@ lib/
 - 카테고리 가격은 **데모 시세**이며 실시간 판매가가 아니다. UI 전반에 이 고지가 붙는다.
 - 시세 근거가 없는 카테고리는 가격 필드가 `null`이고 화면에는 "가격 확인 필요"로 표시된다.
   `null`을 0원으로 표시하지 않는다.
-- 번들 상품 46종은 전부 데모 데이터이며 실제 브랜드·상품이 아니다.
-  화면에 DEMO 배지와 고지를 표시한다(`isDemo == true`).
-- Supabase에는 `crawler/`가 수집한 실제 상품(`isDemo == false`)이 함께 들어 있다.
-  실제 상품에는 DEMO 배지가 붙지 않고, 상세에서 원본 판매 페이지로 이동할 수 있다.
+- **실제 상품 모드**(Supabase 값이 주어졌을 때): `is_demo = false`인 수집 상품만 보여 준다.
+  번들 데모 46종은 화면에 나오지 않고, 읽기에 실패하면 데모로 덮지 않고 재시도 화면을 띄운다.
+- **데모 모드**(Supabase 값이 없을 때): 번들 상품 46종으로 동작한다.
+  이들은 실제 브랜드·상품이 아니며 화면에 DEMO 배지와 고지가 붙는다.
+- 상품이 많아 목록은 스크롤에 따라 이어 붙인다(끝에 "더 보기"도 함께 둔다).
 - 데모 상품 이미지는 외부 URL을 쓰지 않는다. asset이 없으면 카테고리별 로컬 비주얼을 그린다.
   수집한 실제 상품만 공급원이 공개한 이미지 URL을 쓰고, 불러오지 못하면 같은 비주얼로 되돌아간다.
 - 찜과 최근 본 상품은 기기 로컬에 저장되어 앱을 다시 켜도 유지된다.
@@ -101,6 +119,7 @@ lib/
   (가격이 없으면 "가격 확인 필요", URL이 없으면 구매 CTA 비활성).
 - 상품 상세의 단일 CTA "상품 보러 가기"는 수집한 실제 상품에서만 활성화되어
   원본 판매 페이지를 외부 브라우저로 연다. 데모 상품에서는 비활성이고 이유를 버튼 위에 설명한다.
+- 품절은 공급원이 알려 줄 때만 표시한다. 모르면 표시하지 않고 품절로 단정하지 않는다.
 - 자연어 검색은 외부 AI 없이 로컬 키워드 파서만 사용하며, 신뢰도가 낮은 조건은
   사용자가 직접 고르도록 되묻는다.
 

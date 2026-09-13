@@ -2,22 +2,31 @@
 /**
  * Giftmap 상품 수집기 (MCP 없이 단독 실행된다).
  *
- *   node src/index.js --source 10x10 --limit 20            # 수집 + Supabase upsert
- *   node src/index.js --source 10x10 --limit 5 --dry-run   # 수집만 하고 파일로 저장
- *   node src/index.js --source 10x10 --limit 200 --rounds 8  # 하위 분류까지 넓게
+ *   node src/index.js                                        # 모든 공급원
+ *   node src/index.js --source 10x10 --limit 300             # 한 공급원만
+ *   node src/index.js --source all --limit 500 --rounds 8    # 전부, 넓게
+ *   node src/index.js --limit 5 --dry-run                    # 수집만 하고 파일로 저장
+ *   node src/index.js --headed                               # 브라우저 창을 띄워 확인
  *
- * 실패해도 앱은 멈추지 않는다. 앱은 Supabase 읽기가 실패하면 번들 Mock 으로 되돌아간다.
+ * 실패해도 앱은 멈추지 않는다. 수집 결과는 항상 out/ 에 남고,
+ * 업로드가 실패해도 DB 의 기존 상품은 그대로다.
  */
 import { writeFile, mkdir } from 'node:fs/promises';
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { adapterById, adapterIds } from './adapters/index.js';
+import { adapters as allAdapters, adapterById, adapterIds } from './adapters/index.js';
 import { openBrowser } from './browser.js';
 import { detectAccessWall, extractProduct } from './extract.js';
 import { toProductRow } from './normalize.js';
-import { createServiceClient, readEnvCredentials, upsertProducts } from './supabase.js';
+import { isAllowed, loadRobots } from './robots.js';
+import {
+  createServiceClient,
+  loadDedupeKeys,
+  readEnvCredentials,
+  upsertProducts,
+} from './supabase.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -35,8 +44,8 @@ function loadDotEnv() {
 
 function parseArgs(argv) {
   const args = {
-    source: adapterIds[0],
-    limit: 20,
+    source: 'all',
+    limit: 300,
     dryRun: false,
     headless: true,
     // 하위 분류를 따라 내려가는 최대 횟수. 무한히 넓어지지 않게 막는다.
@@ -45,7 +54,7 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--source') args.source = argv[++i];
-    else if (arg === '--limit') args.limit = Math.max(1, Number(argv[++i]) || 20);
+    else if (arg === '--limit') args.limit = Math.max(1, Number(argv[++i]) || 300);
     else if (arg === '--dry-run') args.dryRun = true;
     else if (arg === '--headed') args.headless = false;
     else if (arg === '--rounds') args.maxRounds = Math.max(1, Number(argv[++i]) || 6);
@@ -53,36 +62,37 @@ function parseArgs(argv) {
   return args;
 }
 
-async function main() {
-  loadDotEnv();
-  const args = parseArgs(process.argv.slice(2));
-  const adapter = adapterById(args.source);
-  if (!adapter) {
-    console.error(`알 수 없는 공급원: ${args.source} (사용 가능: ${adapterIds.join(', ')})`);
-    process.exitCode = 1;
-    return;
-  }
-
-  const { loadRobots, isAllowed } = await import('./robots.js');
-  const { rules } = await loadRobots(adapter.origin);
-  const allowedPath = (url) => isAllowed(rules, new URL(url).pathname);
-
-  const usableListings = adapter.listingUrls.filter(allowedPath);
-  if (usableListings.length === 0) {
-    console.error(`[${adapter.id}] robots.txt 가 목록 경로를 허용하지 않아 중단합니다.`);
-    process.exitCode = 1;
-    return;
-  }
-
-  const collectedAt = new Date().toISOString();
-  const browser = await openBrowser({ headless: args.headless });
-  const page = await browser.context.newPage();
-
+/**
+ * 공급원 하나에서 상품을 모은다.
+ *
+ * 1회차는 어댑터가 정한 시작 목록에서, 그다음부터는 수집한 상품이 알려준
+ * 하위 분류로 범위를 넓힌다. 목표 개수를 채우거나 새 목록이 없으면 멈춘다.
+ */
+async function collectFromAdapter(adapter, page, args) {
   const rows = [];
   const skipped = [];
   const seenIds = new Set();
   const visitedListings = new Set();
   const visitedDetails = new Set();
+  const collectedAt = new Date().toISOString();
+
+  const { rules } = await loadRobots(adapter.origin).catch(() => ({ rules: null }));
+  const allowedPath = (url) => {
+    try {
+      return isAllowed(rules, new URL(url).pathname);
+    } catch {
+      return false;
+    }
+  };
+
+  const startListings = adapter.listingUrls.filter(allowedPath);
+  if (startListings.length === 0) {
+    skipped.push({ url: adapter.origin, reason: 'robots.txt 가 목록 경로를 허용하지 않음' });
+    return { rows, skipped };
+  }
+
+  // 상세 URL 이 어떤 목록에서 나왔는지 기억해 분류 힌트로 쓴다.
+  const hintByUrl = new Map();
 
   /** 목록 한 묶음에서 상세 URL 을 모은다. 이미 본 목록은 건너뛴다. */
   async function gatherDetailUrls(listings, budget) {
@@ -93,12 +103,15 @@ async function main() {
       if (urls.length >= budget) break;
       if (visitedListings.has(listing)) continue;
       visitedListings.add(listing);
-      const take = Math.min(perListing, budget - urls.length);
       let found = [];
       try {
-        found = await adapter.collectProductUrls(page, listing, take);
+        found = await adapter.collectProductUrls(
+          page,
+          listing,
+          Math.min(perListing, budget - urls.length),
+        );
       } catch (error) {
-        skipped.push({ url: listing, reason: `listing 실패: ${error.message ?? error}` });
+        skipped.push({ url: listing, reason: `목록 실패: ${error.message ?? error}` });
         continue;
       }
       for (const url of found) {
@@ -107,6 +120,8 @@ async function main() {
           continue;
         }
         if (visitedDetails.has(url) || urls.includes(url)) continue;
+        const hint = adapter.categoryFor?.(listing) ?? null;
+        if (hint) hintByUrl.set(url, hint);
         urls.push(url);
       }
     }
@@ -127,15 +142,22 @@ async function main() {
           skipped.push({ url, reason: `access wall (${wall})` });
           continue;
         }
-        const raw = await extractProduct(page);
+        let raw = await extractProduct(page);
         if (!raw) {
           skipped.push({ url, reason: 'no JSON-LD / meta' });
           continue;
         }
+        // 공급원이 JSON-LD 로 주지 않는 값(예: 도서 가격)을 어댑터가 보완한다.
+        raw = (await adapter.enrich?.(page, raw)) ?? raw;
         raws.push(raw);
         const row = toProductRow(
           { ...raw, productUrl: raw.productUrl ?? url },
-          { sourceId: adapter.id, sourceLabel: adapter.label, collectedAt },
+          {
+            sourceId: adapter.id,
+            sourceLabel: adapter.label,
+            collectedAt,
+            categoryHint: hintByUrl.get(url) ?? null,
+          },
         );
         if (!row) {
           skipped.push({ url, reason: 'missing name or url' });
@@ -144,71 +166,172 @@ async function main() {
         if (seenIds.has(row.id)) continue;
         seenIds.add(row.id);
         rows.push(row);
-        console.log(
-          `  · ${row.id} ${row.product_name.slice(0, 34)} ` +
-            `${row.price === null ? '(가격 확인 필요)' : row.price.toLocaleString('ko-KR') + '원'} [${raw.source}]`,
-        );
+        if (rows.length % 25 === 0) console.log(`  … ${adapter.label} ${rows.length}건`);
       } catch (error) {
         skipped.push({ url, reason: String(error.message ?? error) });
       }
-      await page.waitForTimeout(700); // 공급원 부하를 낮춘다.
+      await page.waitForTimeout(600); // 공급원 부하를 낮춘다.
     }
     return raws;
   }
 
-  try {
-    // 1회차는 어댑터가 정한 시작 목록에서, 그다음부터는 수집한 상품이 알려준
-    // 하위 분류로 범위를 넓힌다. 목표 개수를 채우거나 새 분류가 없으면 멈춘다.
-    let listings = usableListings;
-    let round = 1;
-    while (rows.length < args.limit && listings.length > 0 && round <= args.maxRounds) {
-      const detailUrls = await gatherDetailUrls(listings, args.limit - rows.length);
-      console.log(
-        `[${adapter.id}] ${round}회차 · 분류 ${listings.length}개 · 상세 후보 ${detailUrls.length}건`,
-      );
-      if (detailUrls.length === 0) break;
+  let listings = startListings;
+  let round = 1;
+  while (rows.length < args.limit && listings.length > 0 && round <= args.maxRounds) {
+    const detailUrls = await gatherDetailUrls(listings, args.limit - rows.length);
+    console.log(
+      `[${adapter.id}] ${round}회차 · 목록 ${listings.length}개 · 상세 후보 ${detailUrls.length}건`,
+    );
+    if (detailUrls.length === 0) break;
 
-      const raws = await collectDetails(detailUrls);
-      const discovered = adapter.discoverListings?.(raws) ?? [];
-      listings = discovered.filter(
-        (url) => allowedPath(url) && !visitedListings.has(url),
-      );
-      round += 1;
+    const raws = await collectDetails(detailUrls);
+    const discovered = adapter.discoverListings?.(raws) ?? [];
+    listings = discovered.filter((url) => allowedPath(url) && !visitedListings.has(url));
+    round += 1;
+  }
+
+  return { rows, skipped };
+}
+
+/**
+ * 같은 상품을 한 번만 남긴다.
+ *
+ * 고르는 순서는 (1) 가격을 아는 것 (2) 품절이 아닌 것 (3) 싼 것이고,
+ * 모두 같으면 id 가 작은 것을 골라 실행할 때마다 결과가 같게 한다.
+ * `known` 은 이미 DB 에 있는 중복키 → 상품 id 지도다.
+ */
+export function mergeDuplicates(rows, known = new Map()) {
+  const byKey = new Map();
+  const merged = [];
+  let dropped = 0;
+
+  const better = (a, b) => {
+    if ((a.price === null) !== (b.price === null)) return a.price !== null;
+    if ((a.in_stock === false) !== (b.in_stock === false)) return a.in_stock !== false;
+    if (a.price !== null && b.price !== null && a.price !== b.price) return a.price < b.price;
+    return a.id < b.id;
+  };
+
+  for (const row of rows) {
+    const key = row.dedupe_key;
+    if (!key) {
+      merged.push(row);
+      continue;
+    }
+    // 이미 DB 에 같은 상품이 다른 id 로 있으면 새로 만들지 않는다.
+    const existingId = known.get(key);
+    if (existingId && existingId !== row.id) {
+      dropped += 1;
+      continue;
+    }
+    const seen = byKey.get(key);
+    if (!seen) {
+      byKey.set(key, row);
+      merged.push(row);
+      continue;
+    }
+    dropped += 1;
+    if (better(row, seen)) {
+      merged[merged.indexOf(seen)] = row;
+      byKey.set(key, row);
+    }
+  }
+
+  return { merged, dropped };
+}
+
+async function main() {
+  loadDotEnv();
+  const args = parseArgs(process.argv.slice(2));
+
+  const targets =
+    args.source === 'all' ? allAdapters : [adapterById(args.source)].filter(Boolean);
+  if (targets.length === 0) {
+    console.error(`알 수 없는 공급원: ${args.source} (사용 가능: all, ${adapterIds.join(', ')})`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const browser = await openBrowser({ headless: args.headless });
+  const page = await browser.context.newPage();
+
+  const bySource = {};
+  let rows = [];
+  const skipped = [];
+  try {
+    for (const adapter of targets) {
+      console.log(`\n=== ${adapter.label} (${adapter.id}) ===`);
+      try {
+        const result = await collectFromAdapter(adapter, page, args);
+        bySource[adapter.id] = { label: adapter.label, collected: result.rows.length };
+        rows = rows.concat(result.rows);
+        skipped.push(...result.skipped.map((item) => ({ ...item, source: adapter.id })));
+        console.log(`[${adapter.id}] 수집 ${result.rows.length}건`);
+      } catch (error) {
+        // 한 공급원이 실패해도 나머지는 계속한다.
+        bySource[adapter.id] = {
+          label: adapter.label,
+          collected: 0,
+          error: String(error.message ?? error),
+        };
+        console.error(`[${adapter.id}] 실패: ${error.message ?? error}`);
+      }
     }
   } finally {
     await browser.close();
   }
 
-  // 결과는 항상 파일로 남겨 두어 업로드가 실패해도 확인할 수 있다.
+  const credentials = readEnvCredentials();
+  const client = credentials.isConfigured ? createServiceClient(credentials) : null;
+
+  // 이미 DB 에 있는 상품과도 중복을 맞춘다.
+  const known = client && !args.dryRun ? await loadDedupeKeys(client) : new Map();
+  const { merged, dropped } = mergeDuplicates(rows, known);
+
   const outDir = path.join(ROOT, 'out');
   await mkdir(outDir, { recursive: true });
-  const outFile = path.join(outDir, `${adapter.id}.json`);
-  await writeFile(outFile, JSON.stringify({ collectedAt, rows, skipped }, null, 2), 'utf8');
-  console.log(`\n수집 ${rows.length}건 / 건너뜀 ${skipped.length}건 → ${outFile}`);
+  const outFile = path.join(outDir, 'products.json');
+  await writeFile(
+    outFile,
+    JSON.stringify(
+      { finishedAt: new Date().toISOString(), bySource, rows: merged, skipped },
+      null,
+      2,
+    ),
+    'utf8',
+  );
+
+  console.log('\n--- 수집 요약 ---');
+  for (const [id, info] of Object.entries(bySource)) {
+    console.log(
+      `  ${info.label}(${id}): ${info.collected}건${info.error ? ` · 실패: ${info.error}` : ''}`,
+    );
+  }
+  console.log(`  중복 통합으로 제외: ${dropped}건`);
+  console.log(`  올릴 상품: ${merged.length}건 / 건너뜀 ${skipped.length}건 → ${outFile}`);
 
   if (args.dryRun) {
     console.log('--dry-run 이라 Supabase 에는 올리지 않았습니다.');
     return;
   }
-
-  const credentials = readEnvCredentials();
-  if (!credentials.isConfigured) {
+  if (!client) {
     console.warn(
-      'SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 가 없어 업로드를 건너뜁니다. ' +
-        'crawler/.env.example 를 참고하세요. (앱은 기존 Mock 데이터로 계속 동작합니다)',
+      'SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 가 없어 업로드를 건너뜁니다. crawler/.env.example 참고.',
     );
     return;
   }
 
   try {
-    const client = createServiceClient(credentials);
-    const { inserted } = await upsertProducts(client, rows);
+    const { inserted } = await upsertProducts(client, merged);
     console.log(`Supabase upsert 완료: ${inserted}건 (is_demo = false)`);
   } catch (error) {
     console.error(`Supabase 업로드 실패: ${error.message}`);
-    console.error('앱은 기존 데이터(원격 실패 시 번들 Mock)로 계속 동작합니다.');
+    console.error('DB 의 기존 상품은 그대로입니다.');
     process.exitCode = 1;
   }
 }
 
-main();
+// 테스트가 mergeDuplicates 만 가져다 쓸 수 있도록, 직접 실행일 때만 수집을 시작한다.
+if (process.argv[1] && process.argv[1].endsWith(path.basename(fileURLToPath(import.meta.url)))) {
+  main();
+}

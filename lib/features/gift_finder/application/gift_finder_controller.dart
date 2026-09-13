@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/analytics/analytics_event.dart';
 import '../../../core/errors/app_failure.dart';
+import '../../products/domain/product_catalog.dart';
+import '../data/ai_recommendation_service.dart';
 import '../data/local_intent_parser.dart';
 import '../data/local_recommendation_engine.dart';
 import '../data/product_recommendation_engine.dart';
@@ -26,6 +28,8 @@ class GiftFinderController extends ChangeNotifier {
     required LocalRecommendationEngine fallbackEngine,
     ProductRecommendationEngine? productEngine,
     AnalyticsRecorder? analytics,
+    AiRecommendationService? aiService,
+    ProductCatalog? catalog,
     this.onSessionCompleted,
     this.timeout = const Duration(milliseconds: 2500),
   }) : // 이름 있는 매개변수는 private 이름을 쓸 수 없어 초기화 목록으로 대입한다.
@@ -33,13 +37,26 @@ class GiftFinderController extends ChangeNotifier {
        _repository = repository,
        _fallbackEngine = fallbackEngine,
        _productEngine = productEngine,
-       _analytics = analytics;
+       _analytics = analytics,
+       _aiService = aiService,
+       _catalog = catalog;
 
   final RecommendationRepository _repository;
   final LocalRecommendationEngine _fallbackEngine;
   final ProductRecommendationEngine? _productEngine;
   final AnalyticsRecorder? _analytics;
+
+  /// 서버가 실제 상품 중에서 골라 주는 추천. 없거나 실패하면 쓰지 않는다.
+  final AiRecommendationService? _aiService;
+
+  /// AI가 돌려준 상품 id를 실제 상품으로 바꿀 때 쓴다.
+  final ProductCatalog? _catalog;
+
   final SessionCompleted? onSessionCompleted;
+
+  /// 마지막 추천이 AI가 고른 것인지. 화면에서 표시에 쓸 수 있다.
+  bool _usedAiPicks = false;
+  bool get usedAiPicks => _usedAiPicks;
 
   /// 저장소가 응답하지 않을 때를 대비한 로컬 안전장치다.
   ///
@@ -109,6 +126,7 @@ class GiftFinderController extends ChangeNotifier {
     _failure = null;
     _result = null;
     _picks = const <ProductPick>[];
+    _usedAiPicks = false;
     _parsedIntent = null;
     _step = 0;
     _situation = null;
@@ -259,7 +277,12 @@ class GiftFinderController extends ChangeNotifier {
     }
 
     _result = result;
+    // 서버(OpenAI)가 실제 상품 중에서 고르게 하고, 못 고르면 로컬 엔진을 쓴다.
+    final List<ProductPick>? aiPicks = await _aiPicks(intent);
+    if (_disposed) return;
+    _usedAiPicks = aiPicks != null;
     _picks =
+        aiPicks ??
         _productEngine?.recommend(intent, directions: result.items) ??
         const <ProductPick>[];
     _status = FinderStatus.ready;
@@ -273,6 +296,19 @@ class GiftFinderController extends ChangeNotifier {
     _notify();
 
     await onSessionCompleted?.call(intent, result);
+  }
+
+  /// 서버 추천을 시도한다. 준비가 안 됐거나 실패하면 null이다.
+  Future<List<ProductPick>?> _aiPicks(GiftIntent intent) async {
+    final AiRecommendationService? service = _aiService;
+    final ProductCatalog? catalog = _catalog;
+    if (service == null || catalog == null) return null;
+    try {
+      return await service.recommend(intent, catalog: catalog);
+    } on Object {
+      // 서버 추천은 없어도 되는 기능이다. 실패해도 흐름을 막지 않는다.
+      return null;
+    }
   }
 
   /// 결과 한 슬롯만 예비 후보로 교체한다. 나머지 슬롯은 유지한다.

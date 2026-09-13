@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../core/analytics/analytics_event.dart';
+import '../core/config/supabase_bootstrap.dart';
 import '../core/theme/app_theme.dart';
 import '../features/anniversary/application/anniversary_store.dart';
 import '../features/anniversary/data/in_memory_anniversary_repository.dart';
 import '../features/gift_finder/application/gift_finder_controller.dart';
+import '../features/gift_finder/data/ai_recommendation_service.dart';
 import '../features/gift_finder/data/bundled_category_data_source.dart';
 import '../features/gift_finder/data/local_recommendation_engine.dart';
 import '../features/gift_finder/data/mock_recommendation_repository.dart';
@@ -21,6 +23,7 @@ import '../features/library/data/prefs_id_list_storage.dart';
 import '../features/library/domain/id_list_storage.dart';
 import '../features/products/data/bundled_product_data_source.dart';
 import '../features/products/domain/product_catalog.dart';
+import '../features/splash/presentation/load_failure_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
 import 'app_scope.dart';
 import 'app_shell.dart';
@@ -30,6 +33,7 @@ class GiftmapApp extends StatefulWidget {
     this.dataSource,
     this.productDataSource,
     this.storage,
+    this.aiService,
     super.key,
   });
 
@@ -45,6 +49,9 @@ class GiftmapApp extends StatefulWidget {
   /// 찜·최근 본 상품 저장소.
   final IdListStorage? storage;
 
+  /// 서버 추천 서비스. 주지 않으면 Supabase 연결 여부에 따라 정해진다.
+  final AiRecommendationService? aiService;
+
   @override
   State<GiftmapApp> createState() => _GiftmapAppState();
 }
@@ -52,20 +59,45 @@ class GiftmapApp extends StatefulWidget {
 class _GiftmapAppState extends State<GiftmapApp> {
   AppDependencies? _dependencies;
 
+  /// 상품을 불러오지 못한 이유. null이 아니면 재시도 화면을 보여준다.
+  String? _loadError;
+
   @override
   void initState() {
     super.initState();
     _bootstrap();
   }
 
-  /// 번들 JSON을 읽고 의존성을 조립한다. 인위적 지연은 두지 않는다.
+  /// 다시 시도. 실패 상태를 지우고 처음부터 조립한다.
+  void _retry() {
+    setState(() => _loadError = null);
+    _bootstrap();
+  }
+
+  /// 데이터를 읽고 의존성을 조립한다. 인위적 지연은 두지 않는다.
+  ///
+  /// 실제 상품 모드에서는 상품을 못 읽으면 데모로 대체하지 않고 실패로 남긴다.
   Future<void> _bootstrap() async {
+    try {
+      await _assemble();
+    } on Object catch (error) {
+      if (!mounted) return;
+      setState(() => _loadError = error.toString());
+    }
+  }
+
+  Future<void> _assemble() async {
     final CategoryDataSource source =
         widget.dataSource ?? const BundledCategoryDataSource();
     final GiftRuleset ruleset = await source.load();
     final ProductCatalog catalog =
         await (widget.productDataSource ?? const BundledProductDataSource())
             .load();
+    // 실제 상품 모드에서 상품이 하나도 없으면 빈 화면을 보여주지 않고
+    // 재시도 화면으로 보낸다. 데모로 채우지 않는다.
+    if (catalog.isEmpty && SupabaseBootstrap.isRealProductMode) {
+      throw StateError('실제 상품을 한 건도 불러오지 못했습니다.');
+    }
     final LocalRecommendationEngine engine = LocalRecommendationEngine(ruleset);
     final IdListStorage storage = widget.storage ?? const PrefsIdListStorage();
     final FavoritesStore favorites = FavoritesStore(storage);
@@ -89,6 +121,10 @@ class _GiftmapAppState extends State<GiftmapApp> {
         fallbackEngine: engine,
         productEngine: productEngine,
         analytics: analytics,
+        // 서버 추천이 준비되어 있으면 먼저 쓰고, 실패하면 위 엔진이 맡는다.
+        aiService:
+            widget.aiService ?? SupabaseBootstrap.aiRecommendationService(),
+        catalog: catalog,
         onSessionCompleted: (GiftIntent intent, RecommendationResult result) =>
             historyStore.add(
               HistoryEntry(
@@ -128,11 +164,14 @@ class _GiftmapAppState extends State<GiftmapApp> {
   Widget build(BuildContext context) {
     final AppDependencies? dependencies = _dependencies;
     if (dependencies == null) {
+      final String? error = _loadError;
       return MaterialApp(
         title: 'Giftmap',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light(),
-        home: const SplashScreen(),
+        home: error == null
+            ? const SplashScreen()
+            : LoadFailureScreen(onRetry: _retry, detail: error),
       );
     }
 

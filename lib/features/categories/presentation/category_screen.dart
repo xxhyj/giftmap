@@ -9,7 +9,7 @@ import '../../../core/widgets/selectable_chip.dart';
 import '../../products/domain/product.dart';
 import '../../products/domain/product_catalog.dart';
 import '../../products/presentation/product_detail_screen.dart';
-import '../../products/presentation/widgets/product_collections.dart';
+import '../../products/presentation/widgets/paged_product_grid.dart';
 import '../../search/presentation/search_screen.dart';
 import '../domain/category_group.dart';
 
@@ -154,7 +154,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.screen,
                     ),
-                    child: ProductGrid(
+                    child: PagedProductGrid(
                       products: products,
                       onOpen: _openProduct,
                     ),

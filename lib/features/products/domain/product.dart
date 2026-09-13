@@ -32,6 +32,8 @@ class Product {
     this.productUrl,
     this.genderTarget,
     this.isDemo = true,
+    this.inStock,
+    this.source,
   });
 
   final String id;
@@ -80,7 +82,26 @@ class Product {
   /// 데모 데이터 여부. 번들 카탈로그는 모두 true이고,
   /// `crawler/`가 수집해 Supabase에 올린 실제 상품은 false다.
   final bool isDemo;
+
+  /// 재고 여부. null이면 공급원이 알려주지 않은 것이며 품절로 단정하지 않는다.
+  final bool? inStock;
+
+  /// 어느 공급원에서 수집했는지(예: `10x10`). 데모 상품은 null이다.
+  final String? source;
+
   final DateTime createdAt;
+
+  /// 품절이 확인된 상품인지. 모르면 false다(품절로 단정하지 않는다).
+  bool get isSoldOut => inStock == false;
+
+  /// 사용자에게 보여줄 공급원 이름.
+  String? get sourceLabel => switch (source) {
+    '10x10' => '텐바이텐',
+    'musinsa' => '무신사',
+    'aladin' => '알라딘',
+    final String value when value.isNotEmpty => value,
+    _ => null,
+  };
 
   /// 실제 판매 페이지로 이동할 수 있는 상품인지.
   /// 데모 상품에는 판매 페이지가 없으므로 CTA를 활성화하지 않는다.
@@ -164,6 +185,8 @@ class Product {
       description: _str(json['description']) ?? '',
       recommendationReason: _str(json['recommendationReason']) ?? '',
       isDemo: json['isDemo'] != false,
+      inStock: json['inStock'] is bool ? json['inStock']! as bool : null,
+      source: _str(json['source']),
       createdAt:
           DateTime.tryParse(_str(json['createdAt']) ?? '') ?? DateTime(2026),
     );

@@ -13,8 +13,8 @@ GiftMap(선물지도)은 기념일·생일처럼 선물을 골라야 하는 순�
 
 ## 2. 현재 개발 단계의 범위
 
-이 단계의 목표는 **외부 AI/API 없이 Flutter 내부의 로컬 데이터와 결정론적 추천 로직만으로
-핵심 사용자 흐름을 완성하는 것**이다.
+이 단계의 목표는 **공개 상품 페이지에서 수집한 실제 상품으로 핵심 사용자 흐름을 돌리는 것**이다.
+추천은 서버(Edge Function)의 OpenAI가 실제 상품 중에서 고르고, 실패하면 로컬 결정론 엔진이 맡는다.
 
 포함:
 - Flutter Stable / Dart null safety / Material 3 / Android API 24+
@@ -26,7 +26,8 @@ GiftMap(선물지도)은 기념일·생일처럼 선물을 골라야 하는 순�
 상품 수집기 `crawler/` (앱 밖, 선택):
 - Node.js + Playwright로 공급원의 **공개 상품 페이지**에서 상품명·가격·이미지 URL·상품 URL을
   읽어 Supabase `products`에 upsert한다. Flutter 앱과 분리된 프로그램이며 단독 실행된다.
-- JSON-LD의 `schema.org/Product`/`Offer`를 우선 쓰고, 없으면 공개 메타데이터를 쓴다.
+- JSON-LD의 `schema.org/Product`/`Offer`를 우선 쓰고, 없으면 공개 메타데이터를,
+  그래도 비면 어댑터의 `enrich`가 화면의 공개 표시값을 읽는다. 값을 지어내지 않는다.
 - `robots.txt`가 허용한 경로만 방문한다. 로그인·CAPTCHA·접근 제한은 **우회하지 않는다**.
 - 수집 상품은 `is_demo = false`로 데모 상품과 구분하고, 상세에서 원본 판매 페이지를 연다.
 - Supabase 키(`service_role`)는 `crawler/.env` 환경변수로만 받는다. 앱에는 넣지 않는다.
@@ -39,7 +40,7 @@ Supabase(선택):
 - 설정 방법은 `docs/SUPABASE_SETUP.md` 참고.
 
 제외(이후 별도 명령으로 진행):
-- OpenAI·ChatGPT·LLM 등 외부 AI API
+- 앱 안에서의 LLM 호출 (서버 함수를 통해서만 쓴다)
 - 로그인·사용자 동기화, 앱에서 Supabase에 쓰기
 - Firebase, 직접 만든 서버(앱이 호출하는 API 서버), REST/GraphQL API
   (`crawler/`는 앱이 호출하지 않는 오프라인 수집 도구라 여기 해당하지 않는다)
@@ -50,7 +51,8 @@ Supabase(선택):
 
 ## 3. 절대 금지
 
-- 외부 AI API 코드, 그리고 "나중을 위한" 빈 API client·서버 스텁 작성
+- 앱에서 외부 AI API를 직접 호출하기 (OpenAI 호출은 `supabase/functions/recommend` 안에서만 한다)
+- "나중을 위한" 빈 API client·서버 스텁 작성
 - API Key·Secret·인증정보를 앱 코드나 asset에 포함
   (Supabase 값은 `--dart-define`으로만 전달한다)
 - Supabase `service_role`/`secret` 키를 앱에 넣기
@@ -74,6 +76,31 @@ Supabase(선택):
   (검색은 홈 최상단 검색창에서 들어간다)
 - 저장소는 인터페이스로 추상화한다. 현재 구현체는 Mock/InMemory뿐이다
 - 과도한 추상화 금지. 계층은 실제로 필요한 만큼만 만든다
+
+## 4-1. 실제 상품 모드
+
+`--dart-define`으로 Supabase 값이 들어오면 **실제 상품 모드**로 동작한다.
+
+- 상품은 Supabase의 `is_demo = false` 행만 읽는다. 번들 데모 46종은 화면에 나오지 않는다.
+- 이 모드에서는 Mock fallback을 쓰지 않는다. 읽기에 실패하거나 상품이 0건이면
+  데모로 덮지 않고 **오류·재시도 화면**(`LoadFailureScreen`)을 보여 준다.
+- Supabase 값이 없으면 예전처럼 번들 데모 데이터로 동작한다(테스트가 이 경로를 쓴다).
+- 상품이 수백 건이므로 목록은 `PagedProductGrid`로 나눠 보여 준다(스크롤 시 자동 확장 + 더 보기).
+
+## 4-2. 추천 (서버 AI → 로컬 엔진)
+
+```
+사용자 조건
+ └ Edge Function `recommend`
+     ├ Supabase에서 조건에 맞는 실제 상품 후보를 고르고
+     ├ OpenAI에게 그 후보 중에서만 3~5개를 고르게 한 뒤
+     └ 실제로 존재하는 상품 id만 돌려준다
+앱은 받은 id를 카탈로그에서 다시 확인하고, 없으면 버린다.
+3개 미만이거나 호출이 실패하면 `ProductRecommendationEngine`(로컬)이 맡는다.
+```
+
+- 모델은 상품·가격·URL을 만들 수 없다. 고를 수만 있다.
+- `OPENAI_API_KEY`는 Edge Function 시크릿으로만 존재한다. 앱에는 절대 넣지 않는다.
 
 ## 5. 추천 엔진 원칙
 

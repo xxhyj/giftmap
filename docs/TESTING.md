@@ -207,6 +207,17 @@ node src/index.js --source 10x10 --limit 5 --dry-run   # 실제 공급원에서 
 - 앱 쪽 수집 상품 동작은 `test/features/products/collected_product_test.dart`에서
   네트워크 없이 검증한다(CTA 활성 조건, 이미지 fallback).
 
+## 11-3. 실제 상품 모드 검증
+
+- `test/features/products/real_product_mode_test.dart`: 원격 실패 시 데모로 덮지 않고
+  재시도 화면을 띄우는지, 다시 시도가 실제로 재요청하는지.
+- `test/features/products/paged_product_grid_test.dart`: 상품이 많을 때 나눠 보여 주고
+  스크롤이 끝에 닿으면 이어 붙는지.
+- `test/features/gift_finder/ai_recommendation_test.dart`: 서버가 돌려준 id 중
+  카탈로그에 실제로 있는 상품만 남기는지, 3개 미만이면 로컬 엔진에 맡기는지.
+- 이 테스트들은 네트워크를 쓰지 않는다. `--dart-define` 값이 없으므로
+  `flutter test`는 항상 데모 모드(번들 데이터)로 돈다.
+
 ## 12. 수동 확인 (에뮬레이터)
 
 자동 검증 후 Android API 24 에뮬레이터에서 다음을 확인한다.
@@ -220,5 +231,8 @@ node src/index.js --source 10x10 --limit 5 --dry-run   # 실제 공급원에서 
 6. 기념일 추가·삭제, 설정에서 데이터 전체 삭제
 7. 비행기 모드에서 1~2번 흐름이 동일하게 완주되는지 (모든 계산이 로컬)
 8. 시스템 글꼴 크기를 키운 상태에서 상품 카드가 깨지지 않는지
-9. Supabase 연결 상태에서 수집 상품 상세의 "상품 보러 가기"가 원본 판매 페이지를 열고,
-   데모 상품에서는 같은 버튼이 비활성으로 남는지
+9. Supabase 연결 상태(실제 상품 모드)에서
+   - 목록에 DEMO 배지가 붙은 상품이 하나도 없는지
+   - 상품 상세의 "상품 보러 가기"가 원본 판매 페이지를 여는지
+   - 목록을 계속 내리면 상품이 이어 붙는지
+   - 비행기 모드로 앱을 다시 켰을 때 재시도 화면이 뜨는지(데모로 대체되지 않는지)

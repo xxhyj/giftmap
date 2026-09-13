@@ -21,7 +21,12 @@ const CATEGORY_RULES = [
   ['desk', ['데스크', '오거나이저', '연필꽂이', '마우스패드', '조명', '램프']],
   ['homewear', ['잠옷', '파자마', '홈웨어', '가운', '슬리퍼']],
   ['wallet', ['지갑', '카드지갑', '카드케이스', '머니클립']],
-  ['fashion_accessory', ['목걸이', '팔찌', '귀걸이', '반지', '스카프', '머플러', '키링', '가방', '파우치']],
+  ['shoes', ['운동화', '스니커즈', '구두', '샌들', '부츠', '슬리퍼', '로퍼']],
+  ['bag', ['가방', '백팩', '숄더백', '토트백', '크로스백', '파우치', '지갑가방']],
+  ['fashion_accessory', ['목걸이', '팔찌', '귀걸이', '반지', '스카프', '머플러', '키링', '시계', '모자', '벨트']],
+  ['fashion_clothing', ['티셔츠', '맨투맨', '후드', '니트', '셔츠', '코트', '자켓', '재킷', '블루종', '패딩', '바지', '팬츠', '청바지', '원피스', '스커트', '롱슬리브', '스웨트', '카디건', '점퍼']],
+  ['book', ['도서', '책', '소설', '에세이', '시집', '문고', '전집']],
+  ['music', ['음반', 'cd', 'lp', '앨범', '바이닐']],
   ['living', ['수건', '타월', '쿠션', '담요', '블랭킷', '식기', '컵', '그릇', '주방']],
   ['hobby', ['퍼즐', '보드게임', '키트', '취미', '엽서', '포스터', '피규어']],
 ];
@@ -45,6 +50,11 @@ const CATEGORY_CONTEXT = {
   fashion_accessory: { occasions: ['birthday', 'anniversary'], recipients: ['partner', 'friend'] },
   living: { occasions: ['housewarming', 'holiday'], recipients: ['family', 'acquaintance'] },
   hobby: { occasions: ['birthday', 'support'], recipients: ['friend', 'acquaintance'] },
+  fashion_clothing: { occasions: ['birthday', 'anniversary'], recipients: ['partner', 'family'] },
+  bag: { occasions: ['birthday', 'promotion'], recipients: ['partner', 'family'] },
+  shoes: { occasions: ['birthday', 'anniversary'], recipients: ['partner', 'friend'] },
+  book: { occasions: ['birthday', 'support'], recipients: ['friend', 'colleague'] },
+  music: { occasions: ['birthday', 'thanks'], recipients: ['friend', 'partner'] },
 };
 
 /** 태그는 회피 태그와 같은 어휘를 쓴다(앱의 riskRules 와 맞물린다). */
@@ -54,6 +64,45 @@ const TAG_RULES = [
   ['sizing', ['잠옷', '파자마', '홈웨어', '슬리퍼', '반지', '장갑']],
   ['strongTaste', ['위스키', '와인', '전통주', '매운']],
 ];
+
+/**
+ * schema.org 의 availability 를 재고 여부로 바꾼다.
+ * 알려주지 않으면 null 이다. 품절로 단정하지 않는다.
+ */
+export function readStock(availability) {
+  if (typeof availability !== 'string' || availability.trim() === '') return null;
+  const value = availability.toLowerCase();
+  if (/(outofstock|soldout|discontinued)/.test(value)) return false;
+  if (/(instock|onlineonly|limitedavailability|preorder|backorder|instoreonly)/.test(value)) {
+    return true;
+  }
+  return null;
+}
+
+/**
+ * 공급원이 달라도 같은 상품이면 같은 값이 나오는 키.
+ *
+ * 브랜드와 상품명에서 옵션·수량·판촉 문구를 걷어내고 남은 글자만 쓴다.
+ * 완벽한 동일성 판정이 아니라 "같은 상품이 여러 번 보이는 것"을 줄이는 장치다.
+ */
+export function dedupeKey(brand, name) {
+  const strip = (value) =>
+    (value ?? '')
+      .toLowerCase()
+      // [단독], (2종 선택) 같은 괄호 표기와 1+1 판촉 문구를 지운다.
+      .replace(/[[(<{][^\])>}]*[\])>}]/g, ' ')
+      .replace(/\d+\s*\+\s*\d+/g, ' ')
+      .replace(/[^0-9a-z가-힣]+/g, '');
+
+  const brandKey = strip(brand);
+  let nameKey = strip(name);
+  // 상품명이 브랜드로 시작하면 한 번만 남긴다(공급원마다 표기가 달라서다).
+  if (brandKey && nameKey.startsWith(brandKey)) {
+    nameKey = nameKey.slice(brandKey.length);
+  }
+  const key = `${brandKey}${nameKey}`;
+  return key.length > 0 ? key : null;
+}
 
 export function priceBand(price) {
   if (price === null || price === undefined) return 'custom';
@@ -83,7 +132,7 @@ function guessTags(haystack) {
  * 수집 결과 하나를 `products` 행으로 만든다.
  * 필수값(상품명·상품 URL)이 없으면 null 을 돌려주고 호출자가 건너뛴다.
  */
-export function toProductRow(raw, { sourceId, sourceLabel, collectedAt }) {
+export function toProductRow(raw, { sourceId, sourceLabel, collectedAt, categoryHint }) {
   const name = clean(raw.name);
   const productUrl = clean(raw.productUrl);
   if (!name || !productUrl) return null;
@@ -96,8 +145,12 @@ export function toProductRow(raw, { sourceId, sourceLabel, collectedAt }) {
   // (브랜드명이 상품 성격과 무관한 경우가 많다. 예: "잼몬스터" 마우스패드)
   const breadcrumb = (raw.breadcrumb ?? []).filter(Boolean).join(' ');
   const haystack = [breadcrumb, name, ...(raw.keywords ?? [])].filter(Boolean).join(' ');
-  // 공급원이 붙인 분류(breadcrumb)를 가장 믿고, 못 고르면 상품명·키워드로 본다.
-  const category = guessCategory(breadcrumb, null) ?? guessCategory(haystack);
+  // 공급원이 붙인 분류(breadcrumb)를 가장 믿고,
+  // 없으면 어댑터가 목록에서 넘긴 힌트, 그다음 상품명·키워드 순으로 본다.
+  const category =
+    guessCategory(breadcrumb, null) ??
+    categoryHint ??
+    guessCategory(haystack);
   const context = CATEGORY_CONTEXT[category] ?? CATEGORY_CONTEXT[DEFAULT_CATEGORY];
 
   return {
@@ -123,6 +176,8 @@ export function toProductRow(raw, { sourceId, sourceLabel, collectedAt }) {
     recommendation_keywords: (raw.keywords ?? []).map(clean).filter(Boolean).slice(0, 8),
     description: shortDescription(raw.description),
     recommendation_reason: `${sourceLabel}에서 공개된 정보를 그대로 옮긴 실제 판매 상품이에요.`,
+    in_stock: readStock(raw.availability),
+    dedupe_key: dedupeKey(raw.brand, name),
     is_demo: false,
     is_active: true,
     sort_order: 0,

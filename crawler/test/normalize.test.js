@@ -1,7 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { guessCategory, priceBand, toProductRow } from '../src/normalize.js';
+import {
+  dedupeKey,
+  guessCategory,
+  priceBand,
+  readStock,
+  toProductRow,
+} from '../src/normalize.js';
+import { mergeDuplicates } from '../src/index.js';
 import { fromJsonLd } from '../src/extract.js';
 import { isAllowed } from '../src/robots.js';
 
@@ -97,4 +104,94 @@ test('robots 의 allow/disallow 는 더 긴 패턴이 이긴다', () => {
   assert.equal(isAllowed(rules, '/shopping/secret/x'), false);
   assert.equal(isAllowed(rules, '/member/login'), false);
   assert.equal(isAllowed(null, '/anything'), true);
+});
+
+test('재고는 availability 로 읽고, 모르면 null 로 둔다', () => {
+  assert.equal(readStock('https://schema.org/InStock'), true);
+  assert.equal(readStock('https://schema.org/OutOfStock'), false);
+  assert.equal(readStock(null), null);
+  assert.equal(readStock('알 수 없는 값'), null);
+});
+
+test('중복키는 표기가 달라도 같은 상품이면 같다', () => {
+  assert.equal(
+    dedupeKey('몬치치', '[몬치치] 얼굴 파우치 키링'),
+    dedupeKey('몬치치', '몬치치 얼굴 파우치 키링'),
+  );
+  assert.notEqual(dedupeKey('A', '가방'), dedupeKey('B', '가방'));
+});
+
+test('중복 통합은 가격·재고·가격순으로 하나만 남긴다', () => {
+  const make = (id, price, inStock) => ({
+    id,
+    dedupe_key: 'same',
+    price,
+    in_stock: inStock,
+  });
+
+  const { merged, dropped } = mergeDuplicates([
+    make('b', null, true),
+    make('a', 10000, true),
+    make('c', 8000, true),
+    make('d', 5000, false), // 품절은 가격이 싸도 고르지 않는다.
+  ]);
+
+  assert.equal(merged.length, 1);
+  assert.equal(dropped, 3);
+  assert.equal(merged[0].id, 'c');
+});
+
+test('이미 DB 에 있는 상품은 다시 만들지 않는다', () => {
+  const known = new Map([['same', '10x10-1']]);
+  const { merged, dropped } = mergeDuplicates(
+    [{ id: 'musinsa-9', dedupe_key: 'same', price: 1000, in_stock: true }],
+    known,
+  );
+  assert.equal(merged.length, 0);
+  assert.equal(dropped, 1);
+});
+
+test('중복키가 없는 상품은 그대로 남는다', () => {
+  const { merged } = mergeDuplicates([{ id: 'x', dedupe_key: null, price: 1 }]);
+  assert.equal(merged.length, 1);
+});
+
+test('어댑터 보완값이 들어오면 가격과 저자가 채워진다', () => {
+  // 알라딘 도서처럼 JSON-LD 가 없어 메타데이터로만 읽힌 뒤,
+  // 어댑터 enrich 가 화면에 공개된 값을 채워 준 상황.
+  const row = toProductRow(
+    {
+      name: '한국사 이상현상 연구원',
+      brand: '최인서',
+      productUrl: 'https://example.test/book/1',
+      price: 16830,
+      listPrice: 22000,
+    },
+    { ...context, sourceId: 'aladin', sourceLabel: '알라딘', categoryHint: 'book' },
+  );
+
+  assert.equal(row.price, 16830);
+  assert.equal(row.original_price, 22000);
+  assert.equal(row.discount_rate, 24);
+  assert.equal(row.brand_name, '최인서');
+  assert.equal(row.category_id, 'book');
+});
+
+test('분류 힌트는 공급원 분류가 없을 때만 쓴다', () => {
+  const withBreadcrumb = toProductRow(
+    {
+      name: '무언가',
+      productUrl: 'https://example.test/1',
+      sku: '1',
+      breadcrumb: ['주방', '식기'],
+    },
+    { ...context, categoryHint: 'book' },
+  );
+  assert.equal(withBreadcrumb.category_id, 'living');
+
+  const withoutBreadcrumb = toProductRow(
+    { name: '무언가', productUrl: 'https://example.test/2', sku: '2' },
+    { ...context, categoryHint: 'book' },
+  );
+  assert.equal(withoutBreadcrumb.category_id, 'book');
 });

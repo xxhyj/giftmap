@@ -13,6 +13,7 @@ import '../../products/domain/product.dart';
 import '../../products/domain/product_catalog.dart';
 import '../../products/presentation/product_detail_screen.dart';
 import '../../products/presentation/widgets/product_collections.dart';
+import '../../products/presentation/widgets/paged_product_grid.dart';
 
 /// 로컬 카탈로그를 검색하는 화면. 네트워크 요청은 없다.
 class SearchScreen extends StatefulWidget {
@@ -172,7 +173,10 @@ class _SearchScreenState extends State<SearchScreen> {
                 )
               else
                 _Padded(
-                  child: ProductGrid(products: results, onOpen: _openProduct),
+                  child: PagedProductGrid(
+                    products: results,
+                    onOpen: _openProduct,
+                  ),
                 ),
             ],
           ],

@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../features/gift_finder/data/ai_recommendation_service.dart';
 import '../../features/products/data/bundled_product_data_source.dart';
-import '../../features/products/data/remote_first_product_data_source.dart';
 import '../../features/products/data/supabase_product_data_source.dart';
 import 'supabase_config.dart';
 
@@ -50,15 +50,26 @@ abstract final class SupabaseBootstrap {
 
   /// 상황에 맞는 상품 데이터 소스를 돌려준다.
   ///
-  /// 연결이 준비됐으면 원격 우선(실패 시 번들 fallback), 아니면 번들 전용이다.
+  /// - 연결됨(실제 상품 모드): Supabase의 실제 상품만 읽는다.
+  ///   실패하면 데모로 감추지 않고 오류를 그대로 올려 재시도 화면을 띄운다.
+  /// - 연결 안 됨(데모 모드): 번들 Mock 데이터를 읽는다.
   static ProductDataSource productDataSource({
     ProductDataSource fallback = const BundledProductDataSource(),
   }) {
     if (!_initialized) return fallback;
-    return RemoteFirstProductDataSource(
-      remote: SupabaseProductDataSource(Supabase.instance.client),
-      fallback: fallback,
-    );
+    return SupabaseProductDataSource(Supabase.instance.client, realOnly: true);
+  }
+
+  /// 실제 상품 모드인지. 데모 상품과 Mock fallback을 감출지 판단에 쓴다.
+  static bool get isRealProductMode => _initialized;
+
+  /// 서버가 실제 상품 중에서 골라 주는 추천.
+  ///
+  /// OpenAI 호출은 Edge Function 안에서만 일어나고 앱에는 키가 없다.
+  /// 연결이 없으면 null이고, 추천은 로컬 엔진이 그대로 맡는다.
+  static AiRecommendationService? aiRecommendationService() {
+    if (!_initialized) return null;
+    return SupabaseAiRecommendationService(Supabase.instance.client);
   }
 
   /// 테스트에서 상태를 초기화할 때 쓴다.

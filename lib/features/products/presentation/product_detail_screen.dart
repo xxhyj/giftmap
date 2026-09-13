@@ -144,6 +144,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     _InfoRow(label: '가격대', value: product.priceRange.label),
                     if (product.subCategory.isNotEmpty)
                       _InfoRow(label: '분류', value: product.subCategory),
+                    if (product.sourceLabel != null)
+                      _InfoRow(label: '판매처', value: product.sourceLabel!),
+                    if (product.inStock != null)
+                      _InfoRow(
+                        label: '재고',
+                        value: product.isSoldOut ? '품절' : '판매 중',
+                      ),
                     if (product.tags.isNotEmpty) ...<Widget>[
                       const SizedBox(height: AppSpacing.md),
                       ChipWrap(

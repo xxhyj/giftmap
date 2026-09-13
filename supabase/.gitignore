@@ -1,0 +1,5 @@
+# 함수 배포·시크릿 설정에 쓰는 값. 절대 커밋하지 않는다.
+.env.local
+.env
+.branches/
+.temp/

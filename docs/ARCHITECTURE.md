@@ -190,11 +190,29 @@ main()
      └ 값 있음 → Supabase.initialize()
 
 SupabaseBootstrap.productDataSource()
- ├ 연결 안 됨 → BundledProductDataSource
- └ 연결 됨   → RemoteFirstProductDataSource
-                ├ SupabaseProductDataSource (products/categories/search_suggestions)
-                └ 실패·빈 결과·6초 초과 → BundledProductDataSource
+ ├ 연결 안 됨(데모 모드)  → BundledProductDataSource
+ └ 연결 됨(실제 상품 모드) → SupabaseProductDataSource(realOnly: true)
+                             ├ is_demo = false 인 행만, 1000건씩 끝까지 읽는다
+                             └ 실패·0건 → 데모로 덮지 않고 LoadFailureScreen
 ```
+
+실제 상품 모드에서는 Mock fallback을 쓰지 않는다. 데모 상품이 섞여 보이면
+"상품 보러 가기"가 동작하지 않는 상품이 생기기 때문이다.
+
+## 8-0-1. 추천 (서버 AI → 로컬 엔진)
+
+```
+GiftFinderController.submit()
+ └ AiRecommendationService (Supabase Functions: recommend)
+     ├ 후보: is_demo = false, in_stock ≠ false, 조건에 맞는 실제 상품
+     ├ OpenAI: 후보 중에서만 3~5개 선택 (상품·가격·URL 생성 불가)
+     └ 응답: 실제 상품 id + 이유
+앱: 받은 id를 ProductCatalog 에서 다시 확인 → 없는 id는 버린다
+    3개 미만 / fallback:true / 호출 실패 → ProductRecommendationEngine(로컬)
+```
+
+- `OPENAI_API_KEY`는 Edge Function 시크릿이며 앱에는 없다.
+- 함수 코드는 `supabase/functions/recommend/index.ts`.
 
 - Supabase `products`에는 두 종류가 섞여 있다.
   번들에서 옮긴 데모 상품(`is_demo = true`, `source = null`)과
