@@ -52,3 +52,6 @@ app.*.map.json
 
 # Kotlin 빌드 부산물
 android/.kotlin/
+
+# Vercel 로컬 연결 정보(프로젝트 id). 저장소에 두지 않는다.
+.vercel/
