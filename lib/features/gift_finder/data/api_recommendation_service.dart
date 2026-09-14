@@ -44,10 +44,7 @@ final class ApiRecommendationService implements AiRecommendationService {
     required ProductCatalog catalog,
   }) async {
     try {
-      final Object? body = await _client.postJson(
-        _config.resolve('/api/recommend'),
-        _toRequest(intent),
-      );
+      final Object? body = await _post(_toRequest(intent));
       if (body is! Map) return null;
       if (body['fallback'] == true) {
         debugPrint('[Giftmap] AI 추천 fallback: ${body['reason']}');
@@ -86,6 +83,23 @@ final class ApiRecommendationService implements AiRecommendationService {
     } on Object catch (error) {
       debugPrint('[Giftmap] AI 추천 호출 실패: $error');
       return null;
+    }
+  }
+
+  /// 추천을 요청한다. 연결이 끊기면 한 번만 다시 시도한다.
+  ///
+  /// 추천은 30초 안팎이 걸려서, 그 사이 화면이 꺼지거나 네트워크가 바뀌면
+  /// 연결이 끊긴다(`Software caused connection abort`). 서버 잘못이 아니라
+  /// 잠깐의 끊김이므로 한 번은 다시 물어본다. 서버가 상태 코드로 답한
+  /// 경우(느림·거절·제한)는 다시 부르지 않는다. 부르는 만큼 돈이 든다.
+  Future<Object?> _post(Map<String, Object?> request) async {
+    final Uri url = _config.resolve('/api/recommend');
+    try {
+      return await _client.postJson(url, request);
+    } on ApiException catch (error) {
+      if (error.statusCode != null) rethrow;
+      debugPrint('[Giftmap] 추천 연결이 끊겨 한 번 더 시도합니다: ${error.message}');
+      return _client.postJson(url, request);
     }
   }
 

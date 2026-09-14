@@ -239,3 +239,31 @@ test('모델이 거절하면 상태 코드만 남기고 본문은 남기지 않�
   assert.equal(result.reason, '추천 모델 응답 401');
   assert.equal(result.reason.includes('sk-'), false);
 });
+
+test('생각 시간을 낮춰 보내고, 끄면 보내지 않는다', async () => {
+  // 이 일은 후보에서 고르는 것뿐이라 길게 생각할 이유가 없다.
+  let sent;
+  const supabase = fakeSupabase({
+    products: [{ id: 'a-1', product_name: 'A', category_id: 'living', source: 's', price: 1 }],
+  });
+  const capture = async (url, options) => {
+    sent = JSON.parse(options.body);
+    return { ok: false, status: 500, async json() { return {}; } };
+  };
+
+  await recommend({
+    supabase,
+    openai: { ...openai, reasoningEffort: 'low' },
+    intent: {},
+    fetchImpl: capture,
+  });
+  assert.equal(sent.reasoning_effort, 'low');
+
+  await recommend({
+    supabase,
+    openai: { ...openai, reasoningEffort: null },
+    intent: {},
+    fetchImpl: capture,
+  });
+  assert.equal('reasoning_effort' in sent, false);
+});

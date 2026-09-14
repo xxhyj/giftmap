@@ -12,8 +12,9 @@
 import { UpstreamError } from './supabase.js';
 
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
-// 후보가 많을수록 프롬프트가 커지고 모델이 느려진다. 40개면 고를 거리는 충분하다.
-const CANDIDATE_LIMIT = 40;
+// 후보가 많을수록 프롬프트가 커지고 모델이 느려진다. 3~5개를 고르는 일이라
+// 24개면 충분하고, 이 수를 줄인 만큼 사용자가 기다리는 시간이 줄어든다.
+const CANDIDATE_LIMIT = 24;
 
 /** 책을 바라는 조건인지. 아니라면 도서 후보를 조금만 보여 준다. */
 export function wantsBooks(intent) {
@@ -196,7 +197,7 @@ export function buildMessages(intent, candidates) {
     '상품명·가격·링크를 새로 만들거나 바꾸지 마라. 목록에 없는 id 는 절대 쓰지 마라.',
     '조건에 맞는 서로 다른 상품 3~5개를 고른다.',
     '가능하면 분류와 판매처가 한쪽으로 쏠리지 않게 고른다.',
-    '각 상품마다 왜 이 사람에게 맞는지 한 문장으로 설명한다.',
+    '각 상품마다 왜 이 사람에게 맞는지 40자 이내 한 문장으로 설명한다.',
     'JSON 으로만 답한다.',
   ].join('\n');
 
@@ -257,6 +258,10 @@ export async function recommend({
         model: openai.model,
         // temperature 는 지정하지 않는다. 모델에 따라 기본값만 받는다.
         response_format: { type: 'json_object' },
+        // 고르기만 하면 되는 일이라 길게 생각할 이유가 없다. 기다리는 시간이 준다.
+        ...(openai.reasoningEffort
+          ? { reasoning_effort: openai.reasoningEffort }
+          : {}),
         messages: buildMessages(intent, candidates),
       }),
       signal: AbortSignal.timeout(timeoutMs),

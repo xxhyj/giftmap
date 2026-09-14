@@ -217,6 +217,55 @@ void main() {
     );
   });
 
+  test('연결이 끊기면 한 번만 다시 시도한다', () async {
+    // 추천은 30초 안팎이라 그 사이 화면이 꺼지면 연결이 끊긴다.
+    int calls = 0;
+    final _FakeClient client = _FakeClient((Map<String, Object?> body) {
+      calls += 1;
+      if (calls == 1) {
+        throw const ApiException('서버에 연결하지 못했습니다: connection abort');
+      }
+      return <String, Object?>{
+        'fallback': false,
+        'picks': <Object?>[
+          <String, Object?>{'productId': 'a'},
+          <String, Object?>{'productId': 'b'},
+          <String, Object?>{'productId': 'c'},
+        ],
+      };
+    });
+
+    final List<ProductPick>? picks = await ApiRecommendationService(
+      _config,
+      client,
+    ).recommend(_intent, catalog: _catalog());
+
+    expect(picks?.length, 3);
+    expect(calls, 2);
+  });
+
+  test('서버가 상태 코드로 답하면 다시 부르지 않는다', () async {
+    // 느리거나 거절당한 것은 다시 불러도 같다. 부르는 만큼 돈이 든다.
+    int calls = 0;
+    final _FakeClient client = _FakeClient((Map<String, Object?> body) {
+      calls += 1;
+      throw const ApiException(
+        '너무 잦습니다',
+        statusCode: 429,
+        code: 'rate_limited',
+      );
+    });
+
+    expect(
+      await ApiRecommendationService(
+        _config,
+        client,
+      ).recommend(_intent, catalog: _catalog()),
+      isNull,
+    );
+    expect(calls, 1);
+  });
+
   test('모양이 다른 응답도 조용히 넘긴다', () async {
     final _FakeClient client = _FakeClient(
       (Map<String, Object?> body) => <String, Object?>{'picks': '목록이 아님'},

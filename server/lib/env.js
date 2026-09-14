@@ -22,11 +22,22 @@ export function supabaseEnv(env = process.env) {
   return { url: url.replace(/\/+$/, ''), key };
 }
 
-/** OpenAI 접속 정보. 키가 없으면 null(추천은 앱의 로컬 엔진이 맡는다). */
+/**
+ * OpenAI 접속 정보. 키가 없으면 null(추천은 앱의 로컬 엔진이 맡는다).
+ *
+ * `reasoningEffort` 는 생각을 얼마나 오래 할지다. 낮출수록 빨리 답한다.
+ * 이 일은 후보 목록에서 고르는 것뿐이라 길게 생각할 이유가 없다.
+ * 모델이 이 값을 모르면 `OPENAI_REASONING_EFFORT=none` 으로 꺼서 보낸다.
+ */
 export function openaiEnv(env = process.env) {
   const key = read('OPENAI_API_KEY', env);
   if (!key) return null;
-  return { key, model: read('OPENAI_MODEL', env) ?? 'gpt-5-nano' };
+  const effort = read('OPENAI_REASONING_EFFORT', env) ?? 'low';
+  return {
+    key,
+    model: read('OPENAI_MODEL', env) ?? 'gpt-5-nano',
+    reasoningEffort: effort === 'none' ? null : effort,
+  };
 }
 
 /** 허용 출처 목록. 비어 있으면 모든 출처를 허용한다. */
