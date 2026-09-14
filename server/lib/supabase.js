@@ -16,7 +16,24 @@ export class UpstreamError extends Error {
 }
 
 export function createSupabase({ url, key, fetchImpl = fetch, timeoutMs = 10_000 }) {
-  async function request(path, params, { range } = {}) {
+  /**
+   * 읽기 한 번. 상류가 잠깐 흔들리면 한 번만 다시 묻는다.
+   *
+   * 읽기는 몇 번을 해도 결과가 같아 다시 물어도 안전하다. 앱은 첫 화면을
+   * 이 응답으로 그리므로, 한 번의 순간적인 5xx 가 곧바로 오류 화면이 된다.
+   */
+  async function request(path, params, options = {}) {
+    try {
+      return await requestOnce(path, params, options);
+    } catch (error) {
+      // 요청이 잘못된 경우(4xx)는 다시 물어도 같다.
+      if (!(error instanceof UpstreamError) || error.status === 404) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      return requestOnce(path, params, options);
+    }
+  }
+
+  async function requestOnce(path, params, { range } = {}) {
     const target = new URL(`${url}/rest/v1/${path}`);
     for (const [name, value] of params ?? []) {
       target.searchParams.append(name, value);

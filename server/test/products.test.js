@@ -7,7 +7,7 @@ import {
   loadCategoryLabels,
   toProductJson,
 } from '../lib/products.js';
-import { totalFromContentRange } from '../lib/supabase.js';
+import { createSupabase, totalFromContentRange } from '../lib/supabase.js';
 import { fakeSupabase, productRow } from './helpers.js';
 
 test('DB 행을 앱이 읽는 모양으로 바꾼다', () => {
@@ -144,4 +144,44 @@ test('분류 라벨을 id 기준으로 모은다', async () => {
 test('없는 상품은 null 로 돌려준다', async () => {
   const supabase = fakeSupabase({ products: [] });
   assert.equal(await getProduct(supabase, 'seller-404'), null);
+});
+
+test('상류가 한 번 흔들리면 다시 묻는다', async () => {
+  // 읽기는 다시 물어도 결과가 같다. 순간적인 5xx 가 앱의 첫 화면을
+  // 곧바로 오류 화면으로 만들지 않게 한다.
+  let calls = 0;
+  const supabase = createSupabase({
+    url: 'https://example.supabase.co',
+    key: 'test-only-not-a-real-key',
+    fetchImpl: async () => {
+      calls += 1;
+      if (calls === 1) return { ok: false, status: 502, headers: { get: () => null }, async json() { return {}; } };
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => '0-0/1' },
+        async json() { return [productRow()]; },
+      };
+    },
+  });
+
+  const result = await listProducts(supabase, { offset: 0, limit: 10, category: null, query: null });
+
+  assert.equal(calls, 2);
+  assert.equal(result.rows.length, 1);
+});
+
+test('없는 것을 물으면 다시 묻지 않는다', async () => {
+  let calls = 0;
+  const supabase = createSupabase({
+    url: 'https://example.supabase.co',
+    key: 'test-only-not-a-real-key',
+    fetchImpl: async () => {
+      calls += 1;
+      return { ok: false, status: 404, headers: { get: () => null }, async json() { return {}; } };
+    },
+  });
+
+  await assert.rejects(() => getProduct(supabase, 'seller-1'));
+  assert.equal(calls, 1);
 });
