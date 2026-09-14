@@ -6,12 +6,24 @@
 판매처 세 곳(텐바이텐·알라딘·무신사)의 공개 상품 페이지에서 모은 **1,814개 상품**을
 21개 분류로 다루고, 추천은 서버에서 OpenAI가 후보 중에서만 고른다.
 
+**웹 데모: https://giftmap-web.vercel.app** — 설치 없이 바로 만져볼 수 있다(같은 앱을 Flutter Web으로 빌드한 것).
+
 ```
 Android 앱  ──►  Vercel API  ──►  Supabase (상품 DB)
 (주소 하나만 내장)   (키 보관)    └►  OpenAI   (추천)
                      ▲
                   crawler/  Playwright 수집기 (오프라인, 앱과 분리)
 ```
+
+| 홈 | 카테고리 | 상품 상세 |
+| --- | --- | --- |
+| ![홈](docs/screenshots/01-home.png) | ![카테고리](docs/screenshots/02-category.png) | ![상품 상세](docs/screenshots/03-detail.png) |
+
+| 인앱 브라우저 | AI 추천 결과 |
+| --- | --- |
+| ![인앱 브라우저](docs/screenshots/04-browser.png) | ![추천 결과](docs/screenshots/06-result.png) |
+
+<sub>실기기(갤럭시 S24 Ultra)에서 캡처했다.</sub>
 
 > **비상업적 포트폴리오 프로젝트다.** 판매처와 제휴 관계가 없고 결제·중개를 하지 않는다.
 > 상품 정보는 공개 페이지에서 읽은 수집 시점의 값이며, 구매는 판매처 페이지에서 이뤄진다.
@@ -161,8 +173,8 @@ avoidTags 충돌 / riskLevel == avoid → 제외
 ```bash
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze          # 0 issues
-flutter test             # 273 passed
-npm --prefix server test # 63 passed
+flutter test             # 275 passed
+npm --prefix server test # 70 passed
 ```
 
 서버 테스트는 계정도 키도 배포도 없이 돈다. 가짜 요청·응답으로 핸들러를 직접 부르고,
@@ -188,6 +200,18 @@ flutter build apk --release \
 
 서버는 GitHub `main`에 푸시하면 Vercel이 `server/`를 자동 배포한다
 ([server/README.md](server/README.md)). 수집기 실행법은 [crawler/README.md](crawler/README.md).
+
+웹 데모는 같은 코드를 Flutter Web으로 빌드해 별도 Vercel 프로젝트에 올린 것이다.
+
+```bash
+flutter build web --release \
+  --dart-define=USE_MOCK=false \
+  --dart-define=API_BASE_URL=https://giftmapapi.vercel.app
+```
+
+웹에서는 두 가지가 앱과 다르다. 인앱 브라우저(`webview_flutter`)가 없어 CTA가 새 탭을 열고,
+판매처 이미지 서버가 다른 출처의 요청을 막아 이미지를 `/api/image`로 중계한다
+(허용한 판매처 호스트만 옮긴다).
 
 ## 데이터 출처와 경계
 
