@@ -50,13 +50,13 @@ Vercel API `server/` (앱 밖, 선택):
   안드로이드에서도 같은 코드가 그대로 돈다.
 - 웹으로 띄우면 인앱 브라우저(webview_flutter)가 없어 `kIsWeb` 일 때 CTA 가 새 탭을 연다.
   안드로이드의 인앱 브라우저 흐름은 그대로다.
-- Supabase 를 앱에서 직접 읽는 예전 경로(`SupabaseBootstrap`)는 되돌릴 수 있도록 남겨 둔다.
-  두 경로는 `ApiBootstrap` 이 고르며 서로의 코드를 건드리지 않는다.
+- 앱에서 Supabase 를 직접 읽던 예전 경로는 제거했다. 남은 경로는 API 와 번들 Mock 둘뿐이고,
+  `ApiBootstrap` 이 고른다.
 
-Supabase(선택):
-- 상품·카테고리·추천 검색어를 Supabase에서 **읽기 전용**으로 불러올 수 있다.
-- `--dart-define`으로 `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY`를 줄 때만 켜지고,
-  없거나 실패하면 번들 Mock 데이터로 되돌아간다(`RemoteFirstProductDataSource`).
+Supabase:
+- 상품 DB 는 Supabase 에 있지만 **앱은 직접 붙지 않는다.** 읽는 것은 `server/` 의
+  Vercel API 뿐이고, 앱에는 Supabase 주소도 키도 들어가지 않는다.
+- 스키마·마이그레이션은 `supabase/migrations/`, 수집기는 `crawler/` 가 쓴다.
 - 설정 방법은 `docs/SUPABASE_SETUP.md` 참고.
 
 제외(이후 별도 명령으로 진행):
@@ -71,11 +71,12 @@ Supabase(선택):
 
 ## 3. 절대 금지
 
-- 앱에서 외부 AI API를 직접 호출하기 (OpenAI 호출은 `supabase/functions/recommend` 안에서만 한다)
+- 앱에서 외부 AI API를 직접 호출하기 (OpenAI 호출은 `server/api/recommend.js` 안에서만 한다)
 - "나중을 위한" 빈 API client·서버 스텁 작성
 - API Key·Secret·인증정보를 앱 코드나 asset에 포함
-  (Supabase 값은 `--dart-define`으로만 전달한다)
-- Supabase `service_role`/`secret` 키를 앱에 넣기
+  (앱에 들어가는 값은 `API_BASE_URL` 뿐이고 `--dart-define`으로만 전달한다)
+- Supabase·OpenAI 키를 앱에 넣기 (서버 환경변수에만 둔다)
+- 앱에서 Supabase 에 직접 연결하기 (`server/` 의 API 를 거친다)
 - 새 dependency 임의 추가 (특히 AI/API/서버/DB 관련), code generation 도입
 - `flutter clean`, `git reset --hard`, 프로젝트 삭제·재생성
 - 기존 기능 삭제나 주석 처리로 오류 숨기기
@@ -90,7 +91,7 @@ Supabase(선택):
 - 상태 관리는 `ChangeNotifier` + `InheritedWidget`(`AppScope`)만 사용한다. 상태관리 패키지 금지
 - 로컬 저장은 `IdListStorage` 계약을 통해서만 접근한다(현재 구현: shared_preferences / 인메모리)
 - 상품 데이터는 `ProductDataSource` 계약으로만 읽는다
-  (번들 / Supabase / 원격 우선+fallback 세 구현체)
+  (번들 Mock / Vercel API 두 구현체)
 - 라우팅은 `Navigator` + `MaterialPageRoute` (`lib/app/app_router.dart`). 라우팅 패키지 금지
 - 하단 탭은 홈 / 카테고리 / 선물추천 / 찜 / 기록 5개다. 검색 탭은 두지 않는다
   (검색은 홈 최상단 검색창에서 들어간다)
@@ -99,12 +100,12 @@ Supabase(선택):
 
 ## 4-1. 실제 상품 모드
 
-`--dart-define`으로 Supabase 값이 들어오면 **실제 상품 모드**로 동작한다.
+`--dart-define`으로 `USE_MOCK=false` 와 `API_BASE_URL` 이 들어오면 **실제 상품 모드**다.
 
-- 상품은 Supabase의 `is_demo = false` 행만 읽는다. 번들 데모 46종은 화면에 나오지 않는다.
+- 상품은 서버가 내려주는 `is_demo = false` 행만이다. 번들 데모 46종은 화면에 나오지 않는다.
 - 이 모드에서는 Mock fallback을 쓰지 않는다. 읽기에 실패하거나 상품이 0건이면
   데모로 덮지 않고 **오류·재시도 화면**(`LoadFailureScreen`)을 보여 준다.
-- Supabase 값이 없으면 예전처럼 번들 데모 데이터로 동작한다(테스트가 이 경로를 쓴다).
+- 값이 없으면 번들 데모 데이터로 동작한다(테스트가 이 경로를 쓴다).
 - 상품이 수백 건이므로 목록은 `PagedProductGrid`로 나눠 보여 준다(스크롤 시 자동 확장 + 더 보기).
   검색·카테고리·추천 결과 모두 같은 위젯을 쓴다.
 - 홈은 한 출처·한 분류가 뒤덮지 않도록 `ProductCatalog.interleave`로 섞어 구성한다.
@@ -136,7 +137,7 @@ Supabase(선택):
 
 ```
 사용자 조건
- └ Edge Function `recommend`
+ └ Vercel API `POST /api/recommend`
      ├ Supabase에서 조건에 맞는 실제 상품 후보를 고르고
      ├ OpenAI에게 그 후보 중에서만 3~5개를 고르게 한 뒤
      └ 실제로 존재하는 상품 id만 돌려준다
@@ -146,7 +147,7 @@ Supabase(선택):
 
 - 모델은 상품·가격·URL을 만들 수 없다. 고를 수만 있다.
 - 후보는 이미지·가격·판매 URL이 모두 있는 상품으로 제한한다(화면에 온전히 보여 줄 수 있는 것만).
-- `OPENAI_API_KEY`는 Edge Function 시크릿으로만 존재한다. 앱에는 절대 넣지 않는다.
+- `OPENAI_API_KEY`는 Vercel 환경변수로만 존재한다. 앱에는 절대 넣지 않는다.
 
 ## 5. 추천 엔진 원칙
 
@@ -197,7 +198,7 @@ riskLevel == avoid    제외
 
 - 카테고리·위험 규칙·검색어 템플릿·상품 카탈로그는 `lib/data/*.json` 번들 asset이다
 - 번들 상품은 전부 `isDemo: true`인 **데모 데이터**이며, 실제 브랜드·상품·시세가 아니다
-- Supabase에는 `crawler/`가 수집한 `isDemo: false` 실제 상품이 함께 들어갈 수 있다.
+- 서버는 `crawler/`가 수집한 `isDemo: false` 실제 상품을 내려준다.
   실제 상품에는 DEMO 배지를 붙이지 않고, 상세의 단일 CTA로 원본 판매 페이지를 연다
 - 번들 데모 상품 이미지는 외부 URL을 쓰지 않는다. asset이 없으면 카테고리별 로컬 비주얼을 그린다.
   수집한 실제 상품만 공급원이 공개한 이미지 URL을 쓰고, 실패하면 같은 비주얼로 되돌아간다

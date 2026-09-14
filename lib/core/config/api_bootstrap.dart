@@ -11,13 +11,11 @@ import 'api_config.dart';
 
 /// Vercel API 경로를 준비한다.
 ///
-/// Supabase 를 직접 읽는 예전 경로([SupabaseBootstrap])와 나란히 둔다.
-/// 둘 중 하나만 켜지며, 서로의 코드를 건드리지 않는다.
-/// 되돌릴 일이 생기면 `USE_MOCK` 을 주지 않는 것만으로 예전 경로로 돌아간다.
-///
 /// 고르는 규칙은 하나다.
 /// - `USE_MOCK=false` 이고 `API_BASE_URL` 이 https 주소면 → API 경로
-/// - 그 밖에는 → 예전 경로(Supabase 값이 있으면 Supabase, 없으면 번들 Mock)
+/// - 그 밖에는 → 번들 Mock 데이터(테스트가 쓰는 길이기도 하다)
+///
+/// 앱은 Supabase 에 직접 붙지 않는다. 상품도 추천도 서버를 거친다.
 abstract final class ApiBootstrap {
   static ApiConfig _config = const ApiConfig(baseUrl: '', useMock: true);
   static JsonHttpClient? _client;

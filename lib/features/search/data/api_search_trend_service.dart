@@ -7,8 +7,8 @@ import 'search_trend_service.dart';
 /// Vercel API 로 검색 기록을 남기고 집계를 읽는 구현.
 ///
 /// 개인을 식별할 수 있는 값은 보내지 않는다. 사용자 id·기기 id 없이 정규화한
-/// 검색어 하나와 종류만 보낸다. 남길지 말지는 [SupabaseSearchTrendService.normalize]
-/// 와 같은 기준으로 앱에서 한 번, 서버에서 한 번 더 거른다.
+/// 검색어 하나와 종류만 보낸다. 남길지 말지는 [normalizeSearchKeyword] 기준으로
+/// 앱에서 한 번, 서버에서 한 번 더 거른다.
 ///
 /// 기록은 부가 기능이다. 실패해도 검색 자체는 그대로 진행한다.
 final class ApiSearchTrendService implements SearchTrendService {
@@ -25,7 +25,7 @@ final class ApiSearchTrendService implements SearchTrendService {
   final int minKeywords;
 
   Future<void> _record(String keyword, String kind) async {
-    final String? value = SupabaseSearchTrendService.normalize(keyword);
+    final String? value = normalizeSearchKeyword(keyword);
     if (value == null) return;
     try {
       await _client.postJson(

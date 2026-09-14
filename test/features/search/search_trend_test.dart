@@ -21,13 +21,13 @@ final class FakeTrendService implements SearchTrendService {
 
   @override
   Future<void> recordSearch(String keyword) async {
-    final String? value = SupabaseSearchTrendService.normalize(keyword);
+    final String? value = normalizeSearchKeyword(keyword);
     if (value != null) recorded.add('search:$value');
   }
 
   @override
   Future<void> recordClick(String keyword) async {
-    final String? value = SupabaseSearchTrendService.normalize(keyword);
+    final String? value = normalizeSearchKeyword(keyword);
     if (value != null) recorded.add('click:$value');
   }
 
@@ -131,18 +131,18 @@ void main() {
 
   group('검색어 정규화 — 개인적인 내용은 남기지 않는다', () {
     test('앞뒤 공백을 정리하고 소문자로 맞춘다', () {
-      expect(SupabaseSearchTrendService.normalize('  Perfume  '), 'perfume');
-      expect(SupabaseSearchTrendService.normalize('향수  선물'), '향수 선물');
+      expect(normalizeSearchKeyword('  Perfume  '), 'perfume');
+      expect(normalizeSearchKeyword('향수  선물'), '향수 선물');
     });
 
     test('빈 검색어는 남기지 않는다', () {
-      expect(SupabaseSearchTrendService.normalize('   '), isNull);
+      expect(normalizeSearchKeyword('   '), isNull);
     });
 
     test('문장처럼 긴 입력은 남기지 않는다', () {
       // 개인적인 내용이 담길 수 있어 아예 기록하지 않는다.
-      expect(SupabaseSearchTrendService.normalize('내일 김민수 생일인데 뭐 사지'), isNull);
-      expect(SupabaseSearchTrendService.normalize('아' * 25), isNull);
+      expect(normalizeSearchKeyword('내일 김민수 생일인데 뭐 사지'), isNull);
+      expect(normalizeSearchKeyword('아' * 25), isNull);
     });
   });
 

@@ -1,9 +1,15 @@
 # Supabase 연결 가이드 (처음 하는 사람 기준)
 
+> **앱은 Supabase 에 직접 붙지 않는다.** 상품 DB 를 읽는 것은 `server/` 의 Vercel API 뿐이고,
+> 앱에 들어가는 값은 `API_BASE_URL` 하나다. 이 문서의 Flutter 쪽 설명은 예전 구조를 담고 있어
+> 지금과 다르다. 지금 필요한 것은 아래 두 가지다.
+>
+> - 스키마와 데이터 준비: 이 문서의 SQL·마이그레이션 부분
+> - 서버가 읽는 키: `server/.env.example` 의 `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`
+>   (값은 Vercel 환경변수에만 넣는다)
+
 Giftmap은 **Supabase 없이도 그대로 동작한다.** 아무 설정을 하지 않으면 앱에 들어 있는
 번들 Mock 데이터(`lib/data/products.json`)를 쓴다.
-이 문서는 그 데이터를 Supabase로 옮겨서 **앱을 다시 빌드하지 않고 상품을 고칠 수 있게**
-만드는 과정을 순서대로 설명한다.
 
 > 걸리는 시간: 처음이면 20~30분.
 > 준비물: Supabase 계정(이미 있음), 이 저장소, Flutter 실행 환경.

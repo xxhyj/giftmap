@@ -6,7 +6,7 @@
 
 - Flutter 3.47.2 (stable) / Dart 3.13.2 / Material 3 / Android API 24+
 - dependencies: `flutter`, `cupertino_icons`, `shared_preferences`(찜·최근 본 상품 로컬 저장),
-  `supabase_flutter`(선택적 원격 상품 데이터)
+  `http`(Vercel API 호출)
 - dev_dependencies: `flutter_test`, `flutter_lints`
 - 상태관리·라우팅·네트워크 패키지 **없음**, code generation **없음**
 
@@ -181,20 +181,23 @@ score = 30
   `experience_voucher`는 시세 근거가 없어 `priceAvailable: false`다.
 - 파싱 실패·데이터 손상 시 예외 대신 `safeDefaultRuleset`(안전 카테고리 3개)으로 진입한다.
 
-## 8-0. 상품 데이터 출처 (번들 / Supabase)
+## 8-0. 상품 데이터 출처 (번들 / Vercel API)
 
 ```
 main()
- └ SupabaseBootstrap.ensureInitialized(SupabaseConfig.fromEnvironment())
-     ├ --dart-define 값 없음 → 아무것도 안 함
-     └ 값 있음 → Supabase.initialize()
+ └ ApiBootstrap.configure(ApiConfig.fromEnvironment())
+     ├ USE_MOCK=false + API_BASE_URL(https) → API 경로
+     └ 그 밖                                 → 번들 Mock
 
-SupabaseBootstrap.productDataSource()
- ├ 연결 안 됨(데모 모드)  → BundledProductDataSource
- └ 연결 됨(실제 상품 모드) → SupabaseProductDataSource(realOnly: true)
-                             ├ is_demo = false 인 행만, 1000건씩 끝까지 읽는다
-                             └ 실패·0건 → 데모로 덮지 않고 LoadFailureScreen
+ApiBootstrap.productDataSource()
+ ├ API 경로 아님 → null → BundledProductDataSource
+ └ API 경로      → ApiProductDataSource
+                    ├ GET /api/products?page=&limit= 로 나눠 받는다
+                    └ 실패·0건 → 데모로 덮지 않고 LoadFailureScreen
 ```
+
+앱은 Supabase 에 직접 붙지 않는다. 상품 DB 를 읽는 것은 `server/` 의 API 뿐이고,
+앱에 들어가는 값은 `API_BASE_URL` 하나다.
 
 실제 상품 모드에서는 Mock fallback을 쓰지 않는다. 데모 상품이 섞여 보이면
 "상품 보러 가기"가 동작하지 않는 상품이 생기기 때문이다.

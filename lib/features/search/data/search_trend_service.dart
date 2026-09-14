@@ -1,6 +1,3 @@
-import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
 /// 검색어 하나와 그 근거.
 class SearchTrend {
   const SearchTrend({
@@ -62,7 +59,19 @@ abstract interface class SearchTrendService {
   });
 }
 
-/// 기록을 남기지 않는 구현. Supabase 연결이 없을 때 쓴다.
+/// 저장하기 전에 검색어를 다듬는다. 남길 수 없는 입력이면 null 이다.
+///
+/// 앞뒤 공백을 없애고 길이를 제한한다. 20자를 넘거나 단어 셋을 넘는 입력은
+/// 문장일 가능성이 높고, 문장에는 개인적인 내용이 담기기 쉬워 아예 남기지 않는다.
+/// 서버도 같은 기준으로 한 번 더 거른다.
+String? normalizeSearchKeyword(String raw) {
+  final String value = raw.trim().replaceAll(RegExp(r'\s+'), ' ');
+  if (value.isEmpty || value.length > 20) return null;
+  if (value.split(' ').length > 3) return null;
+  return value.toLowerCase();
+}
+
+/// 기록을 남기지 않는 구현. 서버가 없을 때 쓴다.
 final class NoopSearchTrendService implements SearchTrendService {
   const NoopSearchTrendService();
 
@@ -80,104 +89,4 @@ final class NoopSearchTrendService implements SearchTrendService {
     keywords: fallback.take(limit).toList(growable: false),
     source: SearchTrendSource.curated,
   );
-}
-
-/// Supabase에 익명으로 남기고 집계 뷰를 읽는 구현.
-final class SupabaseSearchTrendService implements SearchTrendService {
-  const SupabaseSearchTrendService(
-    this._client, {
-    this.minKeywords = 5,
-    this.timeout = const Duration(seconds: 5),
-  });
-
-  final SupabaseClient _client;
-
-  /// 이 개수보다 적게 모이면 "인기"라고 부르지 않고 추천 검색어를 보여 준다.
-  final int minKeywords;
-  final Duration timeout;
-
-  /// 저장하기 전에 다듬는다.
-  ///
-  /// 앞뒤 공백을 없애고 길이를 제한한다. 너무 길거나 문장 같은 입력은
-  /// 개인적인 내용을 담을 수 있어 아예 남기지 않는다.
-  static String? normalize(String raw) {
-    final String value = raw.trim().replaceAll(RegExp(r'\s+'), ' ');
-    if (value.isEmpty || value.length > 20) return null;
-    // 검색어로 보기 어려운 긴 문장은 남기지 않는다.
-    if (value.split(' ').length > 3) return null;
-    return value.toLowerCase();
-  }
-
-  Future<void> _record(String keyword, String kind) async {
-    final String? value = normalize(keyword);
-    if (value == null) return;
-    try {
-      await _client
-          .from('search_events')
-          .insert(<String, Object?>{'keyword': value, 'kind': kind})
-          .timeout(timeout);
-    } on Object catch (error) {
-      // 기록은 부가 기능이다. 실패해도 검색 자체는 계속된다.
-      debugPrint('[Giftmap] 검색 기록 실패: $error');
-    }
-  }
-
-  @override
-  Future<void> recordSearch(String keyword) => _record(keyword, 'search');
-
-  @override
-  Future<void> recordClick(String keyword) => _record(keyword, 'click');
-
-  @override
-  Future<SearchTrendResult> topKeywords({
-    required List<String> fallback,
-    int limit = 8,
-  }) async {
-    try {
-      final List<Map<String, dynamic>> rows = await _client
-          .from('search_trends')
-          .select('keyword, recent, previous')
-          .order('recent', ascending: false)
-          .limit(limit)
-          .timeout(timeout);
-
-      final List<SearchTrend> trends = rows
-          .map(
-            (Map<String, dynamic> row) => SearchTrend(
-              keyword: row['keyword']?.toString() ?? '',
-              recent: (row['recent'] as num?)?.toInt() ?? 0,
-              previous: (row['previous'] as num?)?.toInt() ?? 0,
-            ),
-          )
-          .where((SearchTrend trend) => trend.keyword.isNotEmpty)
-          .toList();
-
-      // 기록이 모자라면 "인기"라고 부르지 않는다.
-      if (trends.length < minKeywords) {
-        return SearchTrendResult(
-          keywords: fallback.take(limit).toList(growable: false),
-          source: SearchTrendSource.curated,
-        );
-      }
-
-      // 많이 찾은 순으로 두되, 지난주보다 늘어난 검색어를 앞으로 올린다.
-      trends.sort((SearchTrend a, SearchTrend b) {
-        final int byGrowth = (b.growth ?? 0).compareTo(a.growth ?? 0);
-        return byGrowth != 0 ? byGrowth : b.recent.compareTo(a.recent);
-      });
-
-      return SearchTrendResult(
-        keywords: trends
-            .map((SearchTrend trend) => trend.keyword)
-            .toList(growable: false),
-        source: SearchTrendSource.measured,
-      );
-    } on Object catch (error) {
-      debugPrint('[Giftmap] 인기 검색어를 불러오지 못했습니다: $error');
-      return SearchTrendResult(
-        keywords: fallback.take(limit).toList(growable: false),
-        source: SearchTrendSource.curated,
-      );
-    }
-  }
 }
