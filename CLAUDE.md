@@ -44,12 +44,12 @@ Vercel API `server/` (앱 밖, 선택):
   `USE_MOCK` 의 기본값은 true 이며, 값을 주지 않으면 예전 경로가 그대로 동작한다.
 - 엔드포인트는 `/api/health`, `/api/products`, `/api/products/:id`, `/api/recommend` 네 개다.
   자세한 내용은 `server/README.md`.
-- 같은 배포에 Flutter 웹 빌드를 `server/public/` 으로 얹어 화면도 같은 주소에서 볼 수 있다.
-  배포 산출물이라 저장소에 넣지 않는다(`server/.gitignore`). 만드는 방법은 `server/README.md`.
-- 웹에는 인앱 브라우저(webview_flutter)가 없다. `kIsWeb` 일 때만 CTA 가 새 탭을 연다.
+- 이 배포는 **API 전용**이다. 화면은 내보내지 않는다. GitHub `main` 에 푸시하면
+  Vercel 이 `server/` 를 자동 배포한다.
+- 앱은 `package:http` 로 서버를 부른다. 웹에서도 컴파일되는 것이 이유였고,
+  안드로이드에서도 같은 코드가 그대로 돈다.
+- 웹으로 띄우면 인앱 브라우저(webview_flutter)가 없어 `kIsWeb` 일 때 CTA 가 새 탭을 연다.
   안드로이드의 인앱 브라우저 흐름은 그대로다.
-- 판매처 이미지 서버가 CORS 를 허용하지 않으면 웹에서는 그 이미지가 자리표시자로 보인다
-  (텐바이텐이 그렇다). 앱에는 해당되지 않는다.
 - Supabase 를 앱에서 직접 읽는 예전 경로(`SupabaseBootstrap`)는 되돌릴 수 있도록 남겨 둔다.
   두 경로는 `ApiBootstrap` 이 고르며 서로의 코드를 건드리지 않는다.
 

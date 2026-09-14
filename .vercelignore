@@ -1,0 +1,5 @@
+# Vercel 은 server/ 만 배포한다(프로젝트 Root Directory = server).
+# 나머지는 올릴 필요가 없고, Flutter 빌드 산출물은 100MB 제한에 걸린다.
+*
+!server
+!server/**

@@ -1,6 +1,7 @@
 # Giftmap API (Vercel)
 
 Flutter 앱이 부르는 HTTPS API다. 앱은 이 주소 하나만 알고, 비밀키는 전부 여기에만 있다.
+화면은 내보내지 않는다. 이 배포는 API 전용이고, 화면은 안드로이드 앱이 그린다.
 
 ```
 Flutter 앱 → Vercel API → Supabase 상품 DB / OpenAI
@@ -44,22 +45,10 @@ Flutter 앱 → Vercel API → Supabase 상품 DB / OpenAI
 | `ALLOWED_ORIGINS` | 브라우저에서 부를 때의 CORS. 비우면 모두 허용 |
 | `RECOMMEND_RATE_LIMIT_PER_MINUTE` | 추천 호출 제한(기본 10) |
 
-## 앱 화면도 같은 주소에서 보기
+## 배포
 
-Flutter 웹 빌드를 `server/public/` 에 두면 Vercel 이 루트에서 정적 파일로 내보낸다.
-API 와 출처가 같아 CORS 를 신경 쓸 필요가 없다.
-
-```bash
-flutter build web --release   --dart-define=USE_MOCK=false   --dart-define=API_BASE_URL=https://giftmapapi.vercel.app
-rm -rf server/public && cp -r build/web server/public
-cd server && npx vercel deploy --prod
-```
-
-`public/` 은 빌드 산출물이라 저장소에 넣지 않는다(`.gitignore`).
-
-웹에서는 두 가지가 앱과 다르다.
-- 인앱 브라우저가 없어 상품 CTA 가 새 탭을 연다(`kIsWeb` 으로 갈린다).
-- 판매처 이미지 서버가 CORS 를 허용하지 않으면 그 이미지는 자리표시자로 보인다.
+GitHub `main` 에 푸시하면 Vercel 이 자동으로 배포한다(프로젝트의 Root Directory 는 `server`).
+손으로 올릴 일이 있으면 이 폴더에서 `npx vercel deploy --prod`.
 
 ## 테스트
 
