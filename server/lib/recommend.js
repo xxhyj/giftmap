@@ -12,7 +12,8 @@
 import { UpstreamError } from './supabase.js';
 
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
-const CANDIDATE_LIMIT = 60;
+// 후보가 많을수록 프롬프트가 커지고 모델이 느려진다. 40개면 고를 거리는 충분하다.
+const CANDIDATE_LIMIT = 40;
 
 /** 책을 바라는 조건인지. 아니라면 도서 후보를 조금만 보여 준다. */
 export function wantsBooks(intent) {
@@ -170,6 +171,23 @@ export async function loadCandidates(supabase, intent, limit = CANDIDATE_LIMIT) 
   return mixCandidates(mapped, limit, { allowBooks: wantsBooks(intent) });
 }
 
+/**
+ * 모델에게 보여 줄 만큼만 남긴다.
+ *
+ * 후보는 이미 조건(상황·관계·예산)으로 걸러서 뽑은 것이라, 그 조건을 다시
+ * 실어 보낼 필요가 없다. 태그·상황·관계 배열까지 보내면 프롬프트만 몇 배로
+ * 커지고 모델이 제때 답하지 못한다.
+ */
+function slim(candidate) {
+  return {
+    id: candidate.id,
+    name: candidate.name,
+    brand: candidate.brand,
+    price: candidate.price,
+    category: candidate.category,
+  };
+}
+
 /** 후보 중에서만 고르게 하는 프롬프트. 새 상품을 만들 여지를 주지 않는다. */
 export function buildMessages(intent, candidates) {
   const system = [
@@ -184,10 +202,10 @@ export function buildMessages(intent, candidates) {
 
   const user = [
     '조건:',
-    JSON.stringify(intent, null, 2),
+    JSON.stringify(intent),
     '',
     '후보 목록(이 안에서만 고를 것):',
-    JSON.stringify(candidates, null, 2),
+    JSON.stringify(candidates.map(slim)),
     '',
     '답 모양: picks 배열 안에 id 와 reason 을 담는다.',
   ].join('\n');
@@ -210,7 +228,8 @@ export async function recommend({
   openai,
   intent,
   fetchImpl = fetch,
-  timeoutMs = 20_000,
+  // 이 모델은 20초 안에 못 끝내는 일이 잦다. 함수 제한(60초) 안에서 넉넉히 기다린다.
+  timeoutMs = 45_000,
 }) {
   let candidates;
   try {
