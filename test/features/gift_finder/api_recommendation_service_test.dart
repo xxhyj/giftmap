@@ -59,6 +59,23 @@ final class _FakeClient implements JsonHttpClient {
   void close() {}
 }
 
+/// GET 만 답하는 대역. 상품 한 건 조회에 쓴다.
+final class _FakeGetClient implements JsonHttpClient {
+  _FakeGetClient(this._respond);
+
+  final Object? Function(Uri url) _respond;
+
+  @override
+  Future<Object?> getJson(Uri url) async => _respond(url);
+
+  @override
+  Future<Object?> postJson(Uri url, Map<String, Object?> body) async =>
+      throw UnimplementedError();
+
+  @override
+  void close() {}
+}
+
 void main() {
   test('서버가 고른 상품을 추천으로 바꾼다', () async {
     final _FakeClient client = _FakeClient(
@@ -104,8 +121,8 @@ void main() {
     expect(sent.containsKey('userId'), isFalse);
   });
 
-  test('카탈로그에 없는 id 는 버린다', () async {
-    // 서버가 없는 상품을 말해도 앱은 자기 카탈로그만 믿는다.
+  test('서버도 모르는 id 는 버린다', () async {
+    // 모델이 지어낸 id 는 상품 조회에서 걸러진다.
     final _FakeClient client = _FakeClient(
       (Map<String, Object?> body) => <String, Object?>{
         'fallback': false,
@@ -124,6 +141,49 @@ void main() {
 
     // 남은 것이 3개 미만이면 로컬 엔진에 맡긴다.
     expect(picks, isNull);
+  });
+
+  test('아직 안 받은 상품은 서버에 하나씩 물어본다', () async {
+    // 앱은 첫 화면 몫만 들고 있는데 서버는 전체에서 고른다. 이걸 안 하면
+    // 고른 상품이 매번 버려져 추천이 로컬 엔진으로 떨어진다(실제로 그랬다).
+    final List<Uri> fetched = <Uri>[];
+    final _FakeGetClient getClient = _FakeGetClient((Uri url) {
+      fetched.add(url);
+      final String id = url.pathSegments.last;
+      return <String, Object?>{
+        'product': <String, Object?>{
+          'id': id,
+          'productName': '나중에 받은 상품 $id',
+          'category': 'living',
+          'categoryLabel': '홈·리빙',
+          'price': 20000,
+          'productUrl': 'https://shop.test/$id',
+          'isDemo': false,
+        },
+      };
+    });
+    final _FakeClient client = _FakeClient(
+      (Map<String, Object?> body) => <String, Object?>{
+        'fallback': false,
+        'picks': <Object?>[
+          <String, Object?>{'productId': 'a', 'reason': '손에 있는 것'},
+          <String, Object?>{'productId': 'far-1', 'reason': '아직 안 받은 것'},
+          <String, Object?>{'productId': 'far-2', 'reason': '이것도'},
+        ],
+      },
+    );
+
+    final List<ProductPick>? picks = await ApiRecommendationService(
+      _config,
+      client,
+      products: ApiProductDataSource(_config, getClient),
+    ).recommend(_intent, catalog: _catalog());
+
+    expect(picks, isNotNull);
+    expect(picks!.length, 3);
+    expect(picks[1].product.id, 'far-1');
+    // 이미 들고 있는 상품은 다시 묻지 않는다.
+    expect(fetched.length, 2);
   });
 
   test('서버가 fallback 을 주면 로컬 엔진에 맡긴다', () async {
@@ -182,6 +242,23 @@ void main() {
       expect(
         ApiBootstrap.aiRecommendationService(),
         isA<ApiRecommendationService>(),
+      );
+    });
+
+    test('추천은 상품 조회보다 오래 기다리는 클라이언트를 쓴다', () {
+      // 서버가 모델을 45초까지 기다린다. 앱이 20초에 포기하면 서버가 잘 고르고
+      // 있어도 매번 로컬 엔진으로 떨어진다(실제로 그랬다).
+      ApiBootstrap.configure(_config);
+
+      final Object? service = ApiBootstrap.aiRecommendationService();
+      expect(service, isA<ApiRecommendationService>());
+      expect(
+        (service! as ApiRecommendationService).client,
+        isA<HttpJsonHttpClient>().having(
+          (HttpJsonHttpClient c) => c.timeout,
+          'timeout',
+          greaterThan(const Duration(seconds: 45)),
+        ),
       );
     });
 

@@ -20,6 +20,10 @@ abstract final class ApiBootstrap {
   static ApiConfig _config = const ApiConfig(baseUrl: '', useMock: true);
   static JsonHttpClient? _client;
 
+  /// 추천 전용. 서버가 모델을 기다리는 시간(45초)보다 넉넉해야 한다.
+  /// 앱이 먼저 포기하면 서버가 잘 고르고 있어도 로컬 엔진으로 떨어진다.
+  static JsonHttpClient? _slowClient;
+
   /// `main()` 에서 한 번 호출한다. 통신은 여기서 하지 않는다.
   static void configure(ApiConfig config, {JsonHttpClient? client}) {
     _config = config;
@@ -31,6 +35,8 @@ abstract final class ApiBootstrap {
       return;
     }
     _client = client ?? HttpJsonHttpClient();
+    _slowClient =
+        client ?? HttpJsonHttpClient(timeout: const Duration(seconds: 60));
     debugPrint('[Giftmap] Vercel API 경로로 실행합니다.');
   }
 
@@ -46,16 +52,23 @@ abstract final class ApiBootstrap {
 
   /// 서버 추천. API 경로가 아니면 null 이고, 추천은 로컬 엔진이 맡는다.
   static AiRecommendationService? aiRecommendationService() {
-    final JsonHttpClient? client = _client;
+    final JsonHttpClient? client = _slowClient;
     if (!_config.isRemoteMode || client == null) return null;
-    return ApiRecommendationService(_config, client);
+    return ApiRecommendationService(
+      _config,
+      client,
+      // 서버가 고른 상품이 아직 앱 손에 없을 때 한 건씩 확인하는 통로.
+      products: ApiProductDataSource(_config, client),
+    );
   }
 
   /// 테스트에서 상태를 초기화할 때 쓴다.
   @visibleForTesting
   static void resetForTest() {
     _client?.close();
+    if (!identical(_slowClient, _client)) _slowClient?.close();
     _client = null;
+    _slowClient = null;
     _config = const ApiConfig(baseUrl: '', useMock: true);
   }
 }
