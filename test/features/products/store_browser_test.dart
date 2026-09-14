@@ -86,6 +86,40 @@ void main() {
     expect(find.byType(ProductDetailScreen), findsOneWidget);
   });
 
+  group('주소를 어떻게 다룰지', () {
+    test('https 는 앱 안에서 그대로 연다', () {
+      expect(
+        storeUrlAction('https://www.10x10.co.kr/shopping/category_prd.asp'),
+        StoreUrlAction.open,
+      );
+    });
+
+    test('평문(http) 은 https 로 올린다', () {
+      // Android 9+ 는 평문 통신을 막는다(ERR_CLEARTEXT_NOT_PERMITTED).
+      // 알라딘이 모바일 페이지로 보낼 때 http 로 내려보내 페이지가 죽었다.
+      expect(
+        storeUrlAction('http://www.aladin.co.kr/m/mproduct.aspx?itemid=1'),
+        StoreUrlAction.upgradeToHttps,
+      );
+    });
+
+    test('앱 스킴은 사용자가 고른 것이므로 판매처 앱에 넘긴다', () {
+      expect(
+        storeUrlAction('intent://item#Intent;end'),
+        StoreUrlAction.handOffToApp,
+      );
+      expect(
+        storeUrlAction('market://details?id=x'),
+        StoreUrlAction.handOffToApp,
+      );
+    });
+
+    test('읽을 수 없는 주소는 아무것도 하지 않는다', () {
+      expect(storeUrlAction('없는주소'), StoreUrlAction.ignore);
+      expect(storeUrlAction(''), StoreUrlAction.ignore);
+    });
+  });
+
   testWidgets('주소가 없는 상품은 CTA 가 잠겨 있다', (WidgetTester tester) async {
     await tester.pumpWidget(
       wrapWithScope(ProductDetailScreen(product: _product(productUrl: null))),

@@ -6,6 +6,31 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../domain/product.dart';
 
+/// 인앱 브라우저가 주소를 어떻게 다룰지.
+enum StoreUrlAction {
+  /// 앱 안에서 그대로 연다.
+  open,
+
+  /// 평문(http)이라 https 로 바꿔 다시 연다.
+  /// Android 9부터 평문 통신이 막혀 그대로 두면 페이지가 죽는다.
+  upgradeToHttps,
+
+  /// 앱 스킴이다. 사용자가 "앱으로 보기"를 고른 것이므로 판매처 앱에 넘긴다.
+  handOffToApp,
+
+  /// 읽을 수 없는 주소. 아무것도 하지 않는다.
+  ignore,
+}
+
+/// 주소 하나를 어떻게 다룰지 정한다. 화면과 떼어 두어 따로 검증한다.
+StoreUrlAction storeUrlAction(String raw) {
+  final Uri? url = Uri.tryParse(raw);
+  if (url == null || !url.hasScheme) return StoreUrlAction.ignore;
+  if (url.isScheme('https')) return StoreUrlAction.open;
+  if (url.isScheme('http')) return StoreUrlAction.upgradeToHttps;
+  return StoreUrlAction.handOffToApp;
+}
+
 /// 판매처 상품 페이지를 Giftmap 안에서 여는 브라우저.
 ///
 /// 왜 앱 안에서 여는가
@@ -78,7 +103,10 @@ class _StoreBrowserScreenState extends State<StoreBrowserScreen> {
 
   /// 페이지가 어디로 가려는지 판단한다.
   ///
-  /// - http/https: 그대로 앱 안에서 연다.
+  /// - https: 그대로 앱 안에서 연다.
+  /// - http: Android 9부터 평문 통신이 막혀 있어 그대로 두면 페이지가 죽는다
+  ///   (`ERR_CLEARTEXT_NOT_PERMITTED`). 판매처가 모바일 페이지로 보낼 때 http로
+  ///   내려보내는 경우가 있어(예: 알라딘), 같은 주소를 https로 올려 다시 연다.
   /// - 그 외(`intent://`, `market://`, 판매처 앱 스킴): 앱 안에서는 열 수 없다.
   ///   사용자가 페이지에서 "앱으로 보기"를 눌렀을 때 일어나는 일이므로,
   ///   그 뜻을 존중해 판매처 앱(또는 스토어)으로 넘긴다.
@@ -86,20 +114,25 @@ class _StoreBrowserScreenState extends State<StoreBrowserScreen> {
     NavigationRequest request,
   ) async {
     final Uri? url = Uri.tryParse(request.url);
-    if (url == null) return NavigationDecision.prevent;
-    if (url.isScheme('https') || url.isScheme('http')) {
-      return NavigationDecision.navigate;
+    switch (storeUrlAction(request.url)) {
+      case StoreUrlAction.open:
+        return NavigationDecision.navigate;
+      case StoreUrlAction.ignore:
+        return NavigationDecision.prevent;
+      case StoreUrlAction.upgradeToHttps:
+        await _controller.loadRequest(url!.replace(scheme: 'https'));
+        return NavigationDecision.prevent;
+      case StoreUrlAction.handOffToApp:
+        try {
+          await launchUrl(url!, mode: LaunchMode.externalApplication);
+        } on Object {
+          if (mounted) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(const SnackBar(content: Text('판매처 앱을 열 수 없어요.')));
+          }
+        }
+        return NavigationDecision.prevent;
     }
-
-    try {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } on Object {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('판매처 앱을 열 수 없어요.')));
-      }
-    }
-    return NavigationDecision.prevent;
   }
 
   /// 상단 뒤로. 페이지 안에서 뒤로 갈 곳이 있으면 그쪽이 먼저다.
