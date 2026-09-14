@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/config/api_bootstrap.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../domain/product.dart';
@@ -150,7 +151,8 @@ class ProductImage extends StatelessWidget {
       );
     } else if (url != null) {
       content = Image.network(
-        url,
+        // 웹에서만 서버를 거친다(판매처가 다른 출처의 요청을 막는다).
+        ApiBootstrap.imageUrl(url),
         fit: BoxFit.cover,
         semanticLabel: product.productName,
         // 새 이미지가 준비될 때까지 앞 이미지를 유지해 깜빡임을 줄인다.

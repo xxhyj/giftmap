@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:giftmap/core/config/api_bootstrap.dart';
 import 'package:giftmap/core/config/api_config.dart';
 import 'package:giftmap/core/net/json_http_client.dart';
 import 'package:giftmap/features/products/data/api_product_data_source.dart';
@@ -90,6 +91,27 @@ void main() {
           useMock: true,
         ).isRemoteMode,
         isFalse,
+      );
+    });
+  });
+
+  group('이미지 주소', () {
+    tearDown(ApiBootstrap.resetForTest);
+
+    test('안드로이드에서는 판매처 주소를 그대로 쓴다', () {
+      // 앱에는 CORS 가 없다. 서버를 거치면 대역폭만 더 쓴다.
+      ApiBootstrap.configure(_config);
+
+      expect(
+        ApiBootstrap.imageUrl('https://thumbnail.10x10.co.kr/a.jpg'),
+        'https://thumbnail.10x10.co.kr/a.jpg',
+      );
+    });
+
+    test('API 경로가 아니면 그대로 쓴다', () {
+      expect(
+        ApiBootstrap.imageUrl('https://thumbnail.10x10.co.kr/a.jpg'),
+        'https://thumbnail.10x10.co.kr/a.jpg',
       );
     });
   });
