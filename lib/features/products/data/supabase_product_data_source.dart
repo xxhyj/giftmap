@@ -88,9 +88,12 @@ recommendation_reason, is_demo, sort_order, created_at
         ? await _categoryLabels()
         : _cachedLabels;
 
+    // 페이지를 나눠 받을 때는 정렬이 고정돼야 한다. 순서가 흔들리면 같은 상품이
+    // 두 페이지에 걸쳐 나오고 어떤 상품은 아예 빠진다.
+    // ascending 을 적어 주지 않으면 내림차순이 되어 뒤에서부터 받는다.
     final List<Map<String, dynamic>> rows = await _productQuery()
-        .order('sort_order')
-        .order('id')
+        .order('sort_order', ascending: true)
+        .order('id', ascending: true)
         .range(offset, offset + limit - 1);
 
     final List<Product> products = <Product>[];
@@ -163,8 +166,8 @@ recommendation_reason, is_demo, sort_order, created_at
       if (realOnly) query = query.eq('is_demo', false);
 
       final List<Map<String, dynamic>> page = await query
-          .order('sort_order')
-          .order('id')
+          .order('sort_order', ascending: true)
+          .order('id', ascending: true)
           .range(from, from + _pageSize - 1);
 
       all.addAll(page);

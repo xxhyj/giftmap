@@ -136,6 +136,26 @@ void main() {
     expect(source.calls, 1, reason: '더 받을 수 없는데 또 읽었다');
   });
 
+  test('서버가 같은 상품을 다시 보내도 목록에 두 번 붙지 않는다', () async {
+    final _OverlappingSource source = _OverlappingSource();
+    final CatalogStore store = CatalogStore(
+      source: source,
+      firstPageSize: 10,
+      pageSize: 10,
+    );
+
+    await store.loadFirstPage();
+    await store.loadMore();
+
+    final List<String> ids = store.catalog.products
+        .map((Product p) => p.id)
+        .toList();
+    expect(ids.toSet().length, ids.length, reason: '같은 상품이 두 번 들어갔다');
+    expect(ids.length, 15);
+    // 겹쳐 온 만큼 뒤로 돌아가지 않는다. 다음 요청은 받은 행 수에서 이어간다.
+    expect(source.requests.last, (10, 10));
+  });
+
   test('더 받다 실패해도 이미 받은 상품은 남는다', () async {
     final _FailingSource source = _FailingSource();
     final CatalogStore store = CatalogStore(source: source, firstPageSize: 5);
@@ -148,6 +168,30 @@ void main() {
     expect(store.catalog.products.length, 5);
     expect(store.isLoadingMore, isFalse);
   });
+}
+
+/// 두 번째 묶음이 앞 묶음과 절반 겹쳐 오는 소스.
+/// 정렬이 흔들리거나 그사이 상품이 늘면 실제로 이렇게 온다.
+final class _OverlappingSource implements PagedProductDataSource {
+  final List<(int, int)> requests = <(int, int)>[];
+
+  @override
+  Future<ProductPage> loadPage({
+    required int offset,
+    required int limit,
+  }) async {
+    requests.add((offset, limit));
+    final int start = offset == 0 ? 0 : 5;
+    return ProductPage(
+      products: <Product>[
+        for (int i = start; i < start + limit; i += 1) _product(i),
+      ],
+      hasMore: true,
+    );
+  }
+
+  @override
+  Future<ProductCatalog> load() async => throw StateError('쓰지 않는다');
 }
 
 /// 첫 묶음만 주고 그다음부터 실패하는 소스.

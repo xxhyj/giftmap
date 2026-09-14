@@ -9,6 +9,7 @@ import '../../../core/widgets/responsive_body.dart';
 import '../../../core/widgets/rounded_surface.dart';
 import '../../gift_finder/domain/gift_intent.dart';
 import '../../products/domain/product.dart';
+import '../../products/domain/product_catalog.dart';
 import '../../products/presentation/product_detail_screen.dart';
 import '../../products/presentation/widgets/product_collections.dart';
 import '../../search/presentation/search_screen.dart';
@@ -63,6 +64,9 @@ class HomeScreen extends StatelessWidget {
 
     void open(Product product) => _openProduct(context, product);
 
+    // 줄을 한 번에 만들어 같은 상품이 여러 줄에 겹쳐 나오지 않게 한다.
+    final HomeSections sections = deps.catalog.homeSections();
+
     return Scaffold(
       body: SafeArea(
         bottom: false,
@@ -88,37 +92,37 @@ class HomeScreen extends StatelessWidget {
               ProductCarouselSection(
                 title: '요즘 눈여겨볼 선물',
                 subtitle: '지금 할인 중인 상품',
-                products: deps.catalog.discounted,
+                products: sections.discounted,
                 onOpen: open,
               ),
               ProductCarouselSection(
                 title: 'Giftmap 추천 상품',
                 subtitle: '상황을 가리지 않고 무난한 선택',
-                products: deps.catalog.popular,
+                products: sections.recommended,
                 onOpen: open,
               ),
               ProductCarouselSection(
                 title: '인기 상품',
                 subtitle: '여러 판매처에서 고루 뽑은 대표 상품',
-                products: deps.catalog.byPriceUnder(50000, limit: 12),
+                products: sections.affordable,
                 onOpen: open,
               ),
               ProductCarouselSection(
                 title: '친구에게 주기 좋은 선물',
                 subtitle: '취향 부담이 적은 구성 위주',
-                products: deps.catalog.byRecipient(RelationshipType.friend),
+                products: sections.forFriend,
                 onOpen: open,
               ),
               ProductCarouselSection(
                 title: '집들이에 센스 있는 선물',
                 subtitle: '공간에 두고 오래 쓰는 것들',
-                products: deps.catalog.byOccasion(GiftSituation.housewarming),
+                products: sections.housewarming,
                 onOpen: open,
               ),
               ProductCarouselSection(
                 title: '부담 없이 마음을 전하기 좋은 선물',
                 subtitle: '가볍게 건네기 좋은 가격대',
-                products: deps.catalog.byPriceUnder(30000, limit: 12),
+                products: sections.light,
                 onOpen: open,
               ),
               const SizedBox(height: AppSpacing.lg),

@@ -42,6 +42,15 @@ class CatalogStore extends ChangeNotifier {
   /// 아직 받을 상품이 남아 있는지.
   bool get hasMore => _hasMore;
 
+  /// 이미 받은 상품. 같은 상품이 두 번 붙는 것을 막는다.
+  final Set<String> _loadedIds = <String>{};
+
+  /// 서버에서 받아 온 행 수. 다음 요청의 시작 위치다.
+  ///
+  /// 화면에 남은 상품 수와 다를 수 있다(겹쳐 온 상품을 버리기 때문).
+  /// 남은 수를 시작 위치로 쓰면 버린 만큼 뒤로 돌아가 같은 구간을 또 받는다.
+  int _fetched = 0;
+
   bool _loading = false;
 
   /// 지금 더 받는 중인지. 같은 요청이 겹치지 않게 하는 데도 쓴다.
@@ -62,6 +71,10 @@ class CatalogStore extends ChangeNotifier {
       offset: 0,
       limit: firstPageSize,
     );
+    _loadedIds
+      ..clear()
+      ..addAll(page.products.map((Product p) => p.id));
+    _fetched = page.products.length;
     _catalog = ProductCatalog(
       products: page.products,
       version: page.version,
@@ -85,13 +98,19 @@ class CatalogStore extends ChangeNotifier {
     notifyListeners();
     try {
       final ProductPage page = await source.loadPage(
-        offset: _catalog.products.length,
+        offset: _fetched,
         limit: pageSize,
       );
+      // 서버가 같은 상품을 다시 보내도(정렬이 흔들리거나 그사이 상품이 늘면
+      // 페이지가 겹친다) 목록에 두 번 붙이지 않는다.
+      _fetched += page.products.length;
+      final List<Product> fresh = page.products
+          .where((Product p) => _loadedIds.add(p.id))
+          .toList();
       _catalog = ProductCatalog(
         products: List<Product>.unmodifiable(<Product>[
           ..._catalog.products,
-          ...page.products,
+          ...fresh,
         ]),
         version: _catalog.version,
         disclaimer: _catalog.disclaimer,

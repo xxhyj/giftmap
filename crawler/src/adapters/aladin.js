@@ -8,6 +8,10 @@ import { collectLinks, hintMap, listingPages } from './helpers.js';
  *
  * 책·음반·문구 등 선물로 고르기 좋은 분류만 시작점으로 쓴다.
  */
+/** 알라딘이 파는 것 중 책이 아닌 것을 알아보는 표시. */
+const NOT_A_BOOK =
+  /\[?(LP|CD|DVD|블루레이|Blu-ray)\]?|\d+집|정규|미니앨범|OST|음반/i;
+
 export const aladinAdapter = {
   id: 'aladin',
   label: '알라딘',
@@ -33,6 +37,21 @@ export const aladinAdapter = {
     ['BranchType=6', 'book'],
     ['BranchType=7', 'stationery'],
   ]),
+
+  /**
+   * 알라딘에서 파는 것은 대부분 책이다.
+   *
+   * 상품명 키워드만 보면 "Student Book"·"Reading" 같은 영어 교재가 문구로,
+   * 만화 「스킵과 로퍼」가 신발로 새어 도서 분류가 텅 비고 다른 분류가
+   * 책으로 뒤덮인다. 그래서 음반·영상·문구처럼 책이 아닌 것이 분명할 때만
+   * 다른 분류를 쓰고, 나머지는 도서로 둔다.
+   */
+  classify({ guessed, hint, name }) {
+    if (hint === 'stationery') return guessed;
+    if (NOT_A_BOOK.test(name)) return guessed === 'book' ? 'music' : guessed;
+    if (guessed === 'dessert' || guessed === 'music') return guessed;
+    return 'book';
+  },
 
   async collectProductUrls(page, listingUrl, limit) {
     return collectLinks(page, listingUrl, {

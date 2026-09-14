@@ -114,36 +114,124 @@ async function loadCandidates(intent: GiftIntent, limit = 60): Promise<Candidate
     source: String(row.source ?? ''),
   }));
 
-  return mixSources(mapped, limit);
+  return mixCandidates(mapped, limit, { allowBooks: wantsBooks(intent) });
+}
+
+/** 책을 바라는 조건인지. 아니라면 도서 후보를 조금만 보여 준다. */
+function wantsBooks(intent: GiftIntent): boolean {
+  const text = [...(intent.preferences ?? []), intent.note ?? ''].join(' ').toLowerCase();
+  return /책|도서|독서|소설|에세이|book|reading/.test(text);
 }
 
 /**
- * 공급원을 번갈아 뽑는다.
+ * 공급원과 분류를 번갈아 뽑는다.
  *
  * 최근 확인 순으로만 받으면 마지막에 수집한 공급원이 후보를 다 차지해
- * 추천이 한 곳 상품으로만 채워진다. 앱 홈과 같은 생각이다.
+ * 추천이 한 곳 상품으로만 채워진다. 분류도 마찬가지로, 상품 수가 가장 많은
+ * 도서가 후보를 메우면 모델은 책밖에 고를 수 없다. 앱 홈과 같은 생각이다.
  */
-function mixSources(items: Candidate[], limit: number): Candidate[] {
-  const bySource = new Map<string, Candidate[]>();
+function mixCandidates(
+  items: Candidate[],
+  limit: number,
+  { allowBooks }: { allowBooks: boolean },
+): Candidate[] {
+  const bySource = new Map<string, Map<string, Candidate[]>>();
   for (const item of items) {
-    const key = item.source || 'unknown';
-    if (!bySource.has(key)) bySource.set(key, []);
-    bySource.get(key)!.push(item);
+    const source = item.source || 'unknown';
+    if (!bySource.has(source)) bySource.set(source, new Map());
+    const byCategory = bySource.get(source)!;
+    const category = item.category || 'unknown';
+    if (!byCategory.has(category)) byCategory.set(category, []);
+    byCategory.get(category)!.push(item);
   }
-  const lines = [...bySource.keys()].sort().map((key) => bySource.get(key)!);
+
+  // 공급원마다 분류를 번갈아 한 줄로 만든다.
+  const lines: Candidate[][] = [];
+  for (const source of [...bySource.keys()].sort()) {
+    const byCategory = bySource.get(source)!;
+    const categories = [...byCategory.keys()].sort();
+    const line: Candidate[] = [];
+    for (let round = 0; ; round += 1) {
+      let took = false;
+      for (const category of categories) {
+        const group = byCategory.get(category)!;
+        if (round >= group.length) continue;
+        line.push(group[round]);
+        took = true;
+      }
+      if (!took) break;
+    }
+    lines.push(line);
+  }
+
+  // 책을 찾는 조건이 아니면 도서 후보는 15% 까지만 넣는다(아예 빼지는 않는다).
+  const bookCap = allowBooks ? limit : Math.max(1, Math.floor(limit * 0.15));
+  let books = 0;
 
   const out: Candidate[] = [];
+  const deferred: Candidate[] = [];
   for (let round = 0; out.length < limit; round += 1) {
     let took = false;
     for (const line of lines) {
       if (round >= line.length) continue;
-      out.push(line[round]);
       took = true;
+      const item = line[round];
+      if (item.category === 'book' && books >= bookCap) {
+        deferred.push(item);
+        continue;
+      }
+      if (item.category === 'book') books += 1;
+      out.push(item);
       if (out.length >= limit) break;
     }
     if (!took) break;
   }
+  // 다른 분류가 모자라면 미뤄 둔 책으로 채운다.
+  for (const item of deferred) {
+    if (out.length >= limit) break;
+    out.push(item);
+  }
   return out;
+}
+
+/**
+ * 모델이 고른 것을 한 번 더 고른다.
+ *
+ * 후보를 섞어 줘도 모델이 같은 분류·같은 브랜드만 집어 오는 경우가 있다.
+ * 분류는 2개까지, 브랜드는 1개까지만 남겨 서로 다른 선물이 되게 한다.
+ */
+function diversify<T extends { id: string }>(
+  picks: T[],
+  byId: Map<string, Candidate>,
+  { allowBooks }: { allowBooks: boolean },
+): T[] {
+  const perCategory = new Map<string, number>();
+  const perBrand = new Map<string, number>();
+  const kept: T[] = [];
+  const spare: T[] = [];
+
+  for (const pick of picks) {
+    const item = byId.get(pick.id)!;
+    const category = item.category || 'unknown';
+    const brand = (item.brand ?? '').toLowerCase();
+    const categoryCap = category === 'book' && !allowBooks ? 1 : 2;
+    const categoryUsed = perCategory.get(category) ?? 0;
+    const brandUsed = brand ? perBrand.get(brand) ?? 0 : 0;
+    if (categoryUsed >= categoryCap || (brand && brandUsed >= 1)) {
+      spare.push(pick);
+      continue;
+    }
+    perCategory.set(category, categoryUsed + 1);
+    if (brand) perBrand.set(brand, brandUsed + 1);
+    kept.push(pick);
+  }
+
+  // 3개를 못 채우면 걸러 낸 것으로 되돌려 채운다. 빈손보다는 낫다.
+  for (const pick of spare) {
+    if (kept.length >= 3) break;
+    kept.push(pick);
+  }
+  return kept.slice(0, 5);
 }
 
 /** 후보 중에서만 고르게 하는 프롬프트. 새 상품을 만들 여지를 주지 않는다. */
@@ -227,14 +315,16 @@ Deno.serve(async (req: Request) => {
     // 모델이 만들어 낸 id 는 버린다. 실제 후보에 있는 것만 남긴다.
     const byId = new Map(candidates.map((item) => [item.id, item]));
     const seen = new Set<string>();
-    const picks = (parsed.picks ?? [])
+    const chosen = (parsed.picks ?? [])
       .filter((pick) => typeof pick?.id === 'string' && byId.has(pick.id!))
       .filter((pick) => !seen.has(pick.id!) && seen.add(pick.id!))
-      .slice(0, 5)
       .map((pick) => ({
-        productId: pick.id!,
+        id: pick.id!,
         reason: typeof pick.reason === 'string' ? pick.reason.slice(0, 200) : '',
       }));
+    const picks = diversify(chosen, byId, { allowBooks: wantsBooks(intent) }).map(
+      (pick) => ({ productId: pick.id, reason: pick.reason }),
+    );
 
     if (picks.length < 3) {
       return json({ fallback: true, reason: '모델이 고른 실제 상품이 3개 미만입니다.' });

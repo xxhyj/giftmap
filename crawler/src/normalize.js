@@ -181,7 +181,10 @@ const NOT_A_GIFT = [
   '하네스', '산책줄', '펫드라이', '냥이', '멍멍이',
 ];
 
-export function toProductRow(raw, { sourceId, sourceLabel, collectedAt, categoryHint }) {
+export function toProductRow(
+  raw,
+  { sourceId, sourceLabel, collectedAt, categoryHint, classify, rank = 0 },
+) {
   const name = clean(raw.name);
   const productUrl = clean(raw.productUrl);
   if (!name || !productUrl) return null;
@@ -202,11 +205,15 @@ export function toProductRow(raw, { sourceId, sourceLabel, collectedAt, category
   // 검색어 힌트를 상품명보다 먼저 쓰면 "향수" 검색에 딸려 온 바디로션이 향수로,
   // "디저트" 검색에 딸려 온 와플메이커가 디저트로 들어간다. 힌트는 상품 자체가
   // 아무것도 말해 주지 않을 때만 쓴다.
-  const category =
+  const guessed =
     guessCategory(breadcrumb, null) ??
     guessCategory(haystack, null) ??
     categoryHint ??
     DEFAULT_CATEGORY;
+  // 공급원이 파는 것이 무엇인지 아는 어댑터에게 마지막 판단을 넘긴다.
+  // 알라딘처럼 취급 품목이 거의 한 종류인 곳에서는 상품명 키워드보다
+  // 공급원의 성격이 더 정확하다("Student Book" 이 문구로 새는 것을 막는다).
+  const category = classify?.({ guessed, hint: categoryHint, name, breadcrumb }) ?? guessed;
   const context = CATEGORY_CONTEXT[category] ?? CATEGORY_CONTEXT[DEFAULT_CATEGORY];
 
   return {
@@ -239,7 +246,10 @@ export function toProductRow(raw, { sourceId, sourceLabel, collectedAt, category
     dedupe_key: dedupeKey(raw.brand, name),
     is_demo: false,
     is_active: true,
-    sort_order: 0,
+    // 공급원 안에서 몇 번째로 수집했는지. 앱은 이 값으로 정렬해 페이지를 나눠
+    // 받는데, 모든 행이 같은 값이면 첫 페이지가 한 공급원으로만 채워진다.
+    // 공급원마다 1,2,3... 을 매기면 페이지마다 공급원이 고루 섞인다.
+    sort_order: rank,
     source: sourceId,
     source_product_id: sourceProductId,
     source_url: productUrl,

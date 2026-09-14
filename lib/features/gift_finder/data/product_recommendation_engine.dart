@@ -103,10 +103,38 @@ class ProductRecommendationEngine {
       return byScore != 0 ? byScore : a.product.id.compareTo(b.product.id);
     });
 
-    if (picks.length >= 3) return picks.take(limit).toList(growable: false);
+    if (picks.length >= 3) return _spread(picks, limit);
 
     // 조건이 지나치게 좁아 결과가 부족하면 예산만 맞춘 안전한 상품으로 보충한다.
     return _withFallback(intent, picks, limit);
+  }
+
+  /// 같은 분류·브랜드가 앞자리를 채우지 않게 벌려 놓는다.
+  ///
+  /// 점수만으로 자르면 책처럼 상품 수가 많은 분류가 3~5칸을 다 가져가
+  /// 비슷한 선물만 늘어놓게 된다. 분류는 2개, 브랜드는 1개까지만 앞세우고
+  /// 밀려난 상품은 뒤에 그대로 둔다(점수 순서는 그대로다).
+  static List<ProductPick> _spread(List<ProductPick> picks, int limit) {
+    final Map<String, int> byCategory = <String, int>{};
+    final Map<String, int> byBrand = <String, int>{};
+    final List<ProductPick> front = <ProductPick>[];
+    final List<ProductPick> rest = <ProductPick>[];
+
+    for (final ProductPick pick in picks) {
+      final String category = pick.product.category;
+      final String brand = (pick.product.brandName ?? '').toLowerCase();
+      final int categoryUsed = byCategory[category] ?? 0;
+      final int brandUsed = brand.isEmpty ? 0 : (byBrand[brand] ?? 0);
+      if (categoryUsed >= 2 || brandUsed >= 1) {
+        rest.add(pick);
+        continue;
+      }
+      byCategory[category] = categoryUsed + 1;
+      if (brand.isNotEmpty) byBrand[brand] = brandUsed + 1;
+      front.add(pick);
+    }
+
+    return <ProductPick>[...front, ...rest].take(limit).toList(growable: false);
   }
 
   /// 상품 한 건의 점수. 제외 대상이면 null을 돌려준다.

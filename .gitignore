@@ -49,3 +49,6 @@ app.*.map.json
 
 # Playwright MCP 가 남기는 스냅샷·로그 (프로젝트 파일이 아니다)
 .playwright-mcp/
+
+# Kotlin 빌드 부산물
+android/.kotlin/

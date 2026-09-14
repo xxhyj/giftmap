@@ -159,6 +159,9 @@ async function collectFromAdapter(adapter, page, args) {
             sourceLabel: adapter.label,
             collectedAt,
             categoryHint: hintByUrl.get(url) ?? null,
+            classify: adapter.classify?.bind(adapter),
+            // 공급원 안에서의 순번. 앱의 페이지네이션이 이 값으로 섞는다.
+            rank: rows.length + 1,
           },
         );
         if (!row) {
