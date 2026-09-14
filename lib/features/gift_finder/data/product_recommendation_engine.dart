@@ -37,11 +37,17 @@ class ProductPick {
 /// 같은 입력에는 항상 같은 순서를 만든다(동점은 상품 id 오름차순).
 class ProductRecommendationEngine {
   const ProductRecommendationEngine({
-    required this.catalog,
+    required ProductCatalog Function() catalog,
     required this.ruleset,
-  });
+  }) : // 이름 있는 매개변수는 private 이름을 쓸 수 없어 초기화 목록으로 대입한다.
+       // ignore: prefer_initializing_formals
+       _catalog = catalog;
 
-  final ProductCatalog catalog;
+  /// 카탈로그는 상품을 이어 받으며 늘어난다. 고정해 두면 나중에 받은 상품이
+  /// 추천 후보에서 빠지므로, 부를 때마다 지금 것을 읽는다.
+  final ProductCatalog Function() _catalog;
+
+  ProductCatalog get catalog => _catalog();
   final GiftRuleset ruleset;
 
   /// 카테고리 추천(선물 방향) → 상품 카테고리 연결.

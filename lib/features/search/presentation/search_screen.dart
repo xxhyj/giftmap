@@ -218,6 +218,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   child: PagedProductGrid(
                     products: results,
                     onOpen: _openProduct,
+                    onNeedMore: deps.catalogStore.loadMore,
                   ),
                 ),
             ],

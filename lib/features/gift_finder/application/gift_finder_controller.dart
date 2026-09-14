@@ -29,7 +29,7 @@ class GiftFinderController extends ChangeNotifier {
     ProductRecommendationEngine? productEngine,
     AnalyticsRecorder? analytics,
     AiRecommendationService? aiService,
-    ProductCatalog? catalog,
+    ProductCatalog Function()? catalog,
     this.onSessionCompleted,
     this.timeout = const Duration(milliseconds: 2500),
   }) : // 이름 있는 매개변수는 private 이름을 쓸 수 없어 초기화 목록으로 대입한다.
@@ -50,7 +50,8 @@ class GiftFinderController extends ChangeNotifier {
   final AiRecommendationService? _aiService;
 
   /// AI가 돌려준 상품 id를 실제 상품으로 바꿀 때 쓴다.
-  final ProductCatalog? _catalog;
+  /// 카탈로그는 이어 받으며 늘어나므로 부를 때마다 지금 것을 읽는다.
+  final ProductCatalog Function()? _catalog;
 
   final SessionCompleted? onSessionCompleted;
 
@@ -301,7 +302,7 @@ class GiftFinderController extends ChangeNotifier {
   /// 서버 추천을 시도한다. 준비가 안 됐거나 실패하면 null이다.
   Future<List<ProductPick>?> _aiPicks(GiftIntent intent) async {
     final AiRecommendationService? service = _aiService;
-    final ProductCatalog? catalog = _catalog;
+    final ProductCatalog? catalog = _catalog?.call();
     if (service == null || catalog == null) return null;
     try {
       return await service.recommend(intent, catalog: catalog);

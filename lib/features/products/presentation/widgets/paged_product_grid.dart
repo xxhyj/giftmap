@@ -16,6 +16,7 @@ class PagedProductGrid extends StatefulWidget {
     required this.products,
     required this.onOpen,
     this.badgeOf,
+    this.onNeedMore,
     this.pageSize = 30,
     super.key,
   });
@@ -26,6 +27,10 @@ class PagedProductGrid extends StatefulWidget {
 
   /// 한 번에 더 보여 줄 개수.
   final int pageSize;
+
+  /// 들고 있는 상품을 다 보여 줬을 때 부른다.
+  /// 서버에서 다음 묶음을 이어 받게 하는 자리다.
+  final VoidCallback? onNeedMore;
 
   @override
   State<PagedProductGrid> createState() => _PagedProductGridState();
@@ -69,7 +74,11 @@ class _PagedProductGridState extends State<PagedProductGrid> {
   }
 
   void _showMore() {
-    if (_visible >= widget.products.length) return;
+    if (_visible >= widget.products.length) {
+      // 손에 든 상품을 다 보여 줬다. 서버에서 더 받아 온다.
+      widget.onNeedMore?.call();
+      return;
+    }
     setState(() {
       _visible = (_visible + widget.pageSize).clamp(0, widget.products.length);
     });

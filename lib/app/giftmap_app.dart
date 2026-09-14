@@ -22,7 +22,7 @@ import '../features/library/application/recently_viewed_store.dart';
 import '../features/library/data/prefs_id_list_storage.dart';
 import '../features/library/domain/id_list_storage.dart';
 import '../features/products/data/bundled_product_data_source.dart';
-import '../features/products/domain/product_catalog.dart';
+import '../features/products/application/catalog_store.dart';
 import '../features/search/data/search_trend_service.dart';
 import '../features/splash/presentation/load_failure_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
@@ -95,12 +95,14 @@ class _GiftmapAppState extends State<GiftmapApp> {
     final CategoryDataSource source =
         widget.dataSource ?? const BundledCategoryDataSource();
     final GiftRuleset ruleset = await source.load();
-    final ProductCatalog catalog =
-        await (widget.productDataSource ?? const BundledProductDataSource())
-            .load();
+    // 첫 화면에 필요한 만큼만 먼저 받는다. 나머지는 목록 끝에서 이어 받는다.
+    final CatalogStore catalogStore = CatalogStore(
+      source: widget.productDataSource ?? const BundledProductDataSource(),
+    );
+    await catalogStore.loadFirstPage();
     // 실제 상품 모드에서 상품이 하나도 없으면 빈 화면을 보여주지 않고
     // 재시도 화면으로 보낸다. 데모로 채우지 않는다.
-    if (catalog.isEmpty && SupabaseBootstrap.isRealProductMode) {
+    if (catalogStore.catalog.isEmpty && SupabaseBootstrap.isRealProductMode) {
       throw StateError('실제 상품을 한 건도 불러오지 못했습니다.');
     }
     final LocalRecommendationEngine engine = LocalRecommendationEngine(ruleset);
@@ -116,7 +118,10 @@ class _GiftmapAppState extends State<GiftmapApp> {
     final AnalyticsRecorder analytics = AnalyticsRecorder();
 
     final ProductRecommendationEngine productEngine =
-        ProductRecommendationEngine(catalog: catalog, ruleset: ruleset);
+        ProductRecommendationEngine(
+          catalog: () => catalogStore.catalog,
+          ruleset: ruleset,
+        );
 
     final AppDependencies dependencies = AppDependencies(
       ruleset: ruleset,
@@ -129,7 +134,7 @@ class _GiftmapAppState extends State<GiftmapApp> {
         // 서버 추천이 준비되어 있으면 먼저 쓰고, 실패하면 위 엔진이 맡는다.
         aiService:
             widget.aiService ?? SupabaseBootstrap.aiRecommendationService(),
-        catalog: catalog,
+        catalog: () => catalogStore.catalog,
         onSessionCompleted: (GiftIntent intent, RecommendationResult result) =>
             historyStore.add(
               HistoryEntry(
@@ -144,7 +149,7 @@ class _GiftmapAppState extends State<GiftmapApp> {
       anniversaryStore: anniversaryStore,
       analytics: analytics,
       shellTab: ShellTabController(),
-      catalog: catalog,
+      catalogStore: catalogStore,
       searchTrends:
           widget.searchTrends ?? SupabaseBootstrap.searchTrendService(),
       productEngine: productEngine,
@@ -164,6 +169,7 @@ class _GiftmapAppState extends State<GiftmapApp> {
     _dependencies?.shellTab.dispose();
     _dependencies?.favorites.dispose();
     _dependencies?.recentlyViewed.dispose();
+    _dependencies?.catalogStore.dispose();
     super.dispose();
   }
 
@@ -190,7 +196,11 @@ class _GiftmapAppState extends State<GiftmapApp> {
         title: 'Giftmap',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light(),
-        home: const AppShell(),
+        // 상품을 이어 받으면 화면이 새 목록을 반영하도록 듣는다.
+        home: ListenableBuilder(
+          listenable: dependencies.catalogStore,
+          builder: (BuildContext context, Widget? child) => const AppShell(),
+        ),
       ),
     );
   }

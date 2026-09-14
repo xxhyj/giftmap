@@ -16,6 +16,8 @@ import 'package:giftmap/features/library/application/favorites_store.dart';
 import 'package:giftmap/features/library/application/recently_viewed_store.dart';
 import 'package:giftmap/features/library/data/in_memory_id_list_storage.dart';
 import 'package:giftmap/features/products/domain/product.dart';
+import 'package:giftmap/features/products/application/catalog_store.dart';
+import 'package:giftmap/features/products/data/bundled_product_data_source.dart';
 import 'package:giftmap/features/products/domain/product_catalog.dart';
 import 'package:giftmap/features/search/data/search_trend_service.dart';
 
@@ -47,10 +49,10 @@ Widget wrapWithScope(Widget child, {List<Product>? products}) {
     anniversaryStore: AnniversaryStore(InMemoryAnniversaryRepository()),
     analytics: AnalyticsRecorder(),
     shellTab: ShellTabController(),
-    catalog: catalog,
+    catalogStore: CatalogStore(source: _FixedSource(catalog))..loadFirstPage(),
     searchTrends: const NoopSearchTrendService(),
     productEngine: ProductRecommendationEngine(
-      catalog: catalog,
+      catalog: () => catalog,
       ruleset: ruleset,
     ),
     favorites: FavoritesStore(storage),
@@ -64,4 +66,14 @@ Widget wrapWithScope(Widget child, {List<Product>? products}) {
       home: Scaffold(body: Center(child: child)),
     ),
   );
+}
+
+/// 테스트가 이미 만들어 둔 카탈로그를 그대로 돌려주는 소스.
+final class _FixedSource implements ProductDataSource {
+  const _FixedSource(this.catalog);
+
+  final ProductCatalog catalog;
+
+  @override
+  Future<ProductCatalog> load() async => catalog;
 }

@@ -8,7 +8,7 @@ import 'bundled_product_data_source.dart';
 ///
 /// 읽기 전용이며 anon(publishable) 키만 사용한다. RLS 정책에 따라
 /// `is_active = true`인 행만 내려온다.
-final class SupabaseProductDataSource implements ProductDataSource {
+final class SupabaseProductDataSource implements PagedProductDataSource {
   const SupabaseProductDataSource(this._client, {this.realOnly = false});
 
   final SupabaseClient _client;
@@ -73,6 +73,81 @@ recommendation_reason, is_demo, sort_order, created_at
             .where((String keyword) => keyword.trim().isNotEmpty),
       ),
     );
+  }
+
+  /// 상품 한 페이지만 읽는다.
+  ///
+  /// 첫 페이지에는 카테고리 라벨과 추천 검색어도 함께 담아, 화면이 바로 뜨게 한다.
+  @override
+  Future<ProductPage> loadPage({
+    required int offset,
+    required int limit,
+  }) async {
+    final bool first = offset == 0;
+    final Map<String, String> labels = first
+        ? await _categoryLabels()
+        : _cachedLabels;
+
+    final List<Map<String, dynamic>> rows = await _productQuery()
+        .order('sort_order')
+        .order('id')
+        .range(offset, offset + limit - 1);
+
+    final List<Product> products = <Product>[];
+    for (final Map<String, dynamic> row in rows) {
+      try {
+        products.add(Product.fromJson(_toProductJson(row, labels)));
+      } on FormatException {
+        continue; // 한 상품이 잘못돼도 나머지는 보여 준다.
+      }
+    }
+
+    return ProductPage(
+      products: List<Product>.unmodifiable(products),
+      // 요청한 만큼 다 왔으면 뒤에 더 있을 수 있다.
+      hasMore: rows.length >= limit,
+      version: 'supabase',
+      disclaimer: realOnly
+          ? collectedProductDisclaimer
+          : defaultProductDisclaimer,
+      searchSuggestions: first ? await _suggestions() : const <String>[],
+    );
+  }
+
+  /// 두 번째 페이지부터는 라벨을 다시 받지 않는다.
+  static Map<String, String> _cachedLabels = <String, String>{};
+
+  Future<Map<String, String>> _categoryLabels() async {
+    final List<Map<String, dynamic>> rows = await _client
+        .from('categories')
+        .select('id, label')
+        .order('sort_order');
+    _cachedLabels = <String, String>{
+      for (final Map<String, dynamic> row in rows)
+        row['id'].toString(): row['label']?.toString() ?? row['id'].toString(),
+    };
+    return _cachedLabels;
+  }
+
+  Future<List<String>> _suggestions() async {
+    final List<Map<String, dynamic>> rows = await _client
+        .from('search_suggestions')
+        .select('keyword')
+        .order('sort_order');
+    return List<String>.unmodifiable(
+      rows
+          .map((Map<String, dynamic> row) => row['keyword']?.toString())
+          .nonNulls
+          .where((String keyword) => keyword.trim().isNotEmpty),
+    );
+  }
+
+  PostgrestFilterBuilder<List<Map<String, dynamic>>> _productQuery() {
+    PostgrestFilterBuilder<List<Map<String, dynamic>>> query = _client
+        .from('products')
+        .select(_productColumns);
+    if (realOnly) query = query.eq('is_demo', false);
+    return query;
   }
 
   /// 상품을 페이지 단위로 끝까지 읽는다.

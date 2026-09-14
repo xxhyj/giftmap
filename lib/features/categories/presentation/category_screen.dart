@@ -157,6 +157,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                     child: PagedProductGrid(
                       products: products,
                       onOpen: _openProduct,
+                      onNeedMore: AppScope.of(context).catalogStore.loadMore,
                     ),
                   ),
                 const SizedBox(height: AppSpacing.lg),

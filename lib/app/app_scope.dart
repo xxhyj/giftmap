@@ -11,6 +11,7 @@ import '../features/gift_finder/data/product_recommendation_engine.dart';
 import '../features/history/application/history_store.dart';
 import '../features/library/application/favorites_store.dart';
 import '../features/library/application/recently_viewed_store.dart';
+import '../features/products/application/catalog_store.dart';
 import '../features/products/domain/product_catalog.dart';
 import '../features/search/data/search_trend_service.dart';
 import 'app_shell.dart';
@@ -25,7 +26,7 @@ class AppDependencies {
     required this.anniversaryStore,
     required this.analytics,
     required this.shellTab,
-    required this.catalog,
+    required this.catalogStore,
     required this.searchTrends,
     required this.productEngine,
     required this.favorites,
@@ -44,8 +45,12 @@ class AppDependencies {
   /// 현재 선택된 바텀 탭. push된 화면에서도 탭 전환을 요청할 수 있게 공유한다.
   final ShellTabController shellTab;
 
-  /// 로컬 Mock 상품 카탈로그.
-  final ProductCatalog catalog;
+  /// 상품 카탈로그를 나눠 받아 들고 있는 곳.
+  /// 상품을 이어 받으면 스스로 알림을 보낸다.
+  final CatalogStore catalogStore;
+
+  /// 지금까지 받은 상품으로 만든 카탈로그.
+  ProductCatalog get catalog => catalogStore.catalog;
 
   /// 검색어를 익명으로 집계하고 인기 검색어를 읽는다.
   /// 연결이 없으면 아무것도 기록하지 않는 구현이 들어온다.

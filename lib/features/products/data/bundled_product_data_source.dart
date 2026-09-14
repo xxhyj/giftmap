@@ -13,6 +13,35 @@ abstract interface class ProductDataSource {
   Future<ProductCatalog> load();
 }
 
+/// 한 번에 받은 상품 묶음.
+class ProductPage {
+  const ProductPage({
+    required this.products,
+    required this.hasMore,
+    this.version = 'page',
+    this.disclaimer = '',
+    this.searchSuggestions = const <String>[],
+  });
+
+  final List<Product> products;
+
+  /// 뒤에 더 받을 상품이 남아 있는지.
+  final bool hasMore;
+
+  /// 첫 페이지에만 의미가 있다. 이후 페이지는 비워 둔다.
+  final String version;
+  final String disclaimer;
+  final List<String> searchSuggestions;
+}
+
+/// 상품을 나눠 받을 수 있는 데이터 소스.
+///
+/// 상품이 수천 건이 되면 한 번에 받아 그리는 동안 화면이 멈춘다.
+/// 첫 화면에 필요한 만큼만 먼저 받고 나머지는 스크롤할 때 이어 받는다.
+abstract interface class PagedProductDataSource implements ProductDataSource {
+  Future<ProductPage> loadPage({required int offset, required int limit});
+}
+
 /// 번들 데모 데이터에 붙는 고지.
 const String defaultProductDisclaimer =
     '데모 상품 데이터입니다. 실제 판매 상품이나 실시간 가격이 아닙니다.';

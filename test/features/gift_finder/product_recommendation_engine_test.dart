@@ -34,7 +34,10 @@ void main() {
   setUp(() {
     catalog = loadBundledCatalog();
     ruleset = loadBundledRuleset();
-    engine = ProductRecommendationEngine(catalog: catalog, ruleset: ruleset);
+    engine = ProductRecommendationEngine(
+      catalog: () => catalog,
+      ruleset: ruleset,
+    );
   });
 
   test('추천 결과는 상품 단위이며 충분한 개수를 돌려준다', () {
@@ -156,12 +159,13 @@ void main() {
   });
 
   test('상품이 없으면 빈 목록을 돌려준다', () {
+    final ProductCatalog emptyCatalog = ProductCatalog(
+      products: const <Product>[],
+      version: 'empty',
+      disclaimer: '데모',
+    );
     final ProductRecommendationEngine empty = ProductRecommendationEngine(
-      catalog: ProductCatalog(
-        products: const <Product>[],
-        version: 'empty',
-        disclaimer: '데모',
-      ),
+      catalog: () => emptyCatalog,
       ruleset: ruleset,
     );
     expect(empty.recommend(intentOf()), isEmpty);
