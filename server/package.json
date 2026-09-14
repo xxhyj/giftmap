@@ -1,0 +1,11 @@
+{
+  "name": "giftmap-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Giftmap 앱이 호출하는 Vercel HTTPS API. 상품은 Supabase 에서, 추천은 OpenAI 에서 온다.",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test \"test/*.test.js\""
+  }
+}

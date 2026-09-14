@@ -37,6 +37,16 @@ GiftMap(선물지도)은 기념일·생일처럼 선물을 골라야 하는 순�
 - Supabase 키(`service_role`)는 `crawler/.env` 환경변수로만 받는다. 앱에는 넣지 않는다.
 - 공급원 추가는 `crawler/src/adapters/`에 어댑터를 더하는 방식이다. 자세한 내용은 `crawler/README.md`.
 
+Vercel API `server/` (앱 밖, 선택):
+- Flutter 앱 → Vercel HTTPS API → Supabase 상품 DB / OpenAI 구조다.
+  앱에는 `API_BASE_URL` 만 들어가고 Supabase·OpenAI 키는 서버 환경변수에만 둔다.
+- `--dart-define=USE_MOCK=false --dart-define=API_BASE_URL=https://...` 일 때만 켜진다.
+  `USE_MOCK` 의 기본값은 true 이며, 값을 주지 않으면 예전 경로가 그대로 동작한다.
+- 엔드포인트는 `/api/health`, `/api/products`, `/api/products/:id`, `/api/recommend` 네 개다.
+  자세한 내용은 `server/README.md`.
+- Supabase 를 앱에서 직접 읽는 예전 경로(`SupabaseBootstrap`)는 되돌릴 수 있도록 남겨 둔다.
+  두 경로는 `ApiBootstrap` 이 고르며 서로의 코드를 건드리지 않는다.
+
 Supabase(선택):
 - 상품·카테고리·추천 검색어를 Supabase에서 **읽기 전용**으로 불러올 수 있다.
 - `--dart-define`으로 `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY`를 줄 때만 켜지고,

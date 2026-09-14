@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/analytics/analytics_event.dart';
+import '../core/config/api_bootstrap.dart';
 import '../core/config/supabase_bootstrap.dart';
 import '../core/theme/app_theme.dart';
 import '../features/anniversary/application/anniversary_store.dart';
@@ -102,7 +103,10 @@ class _GiftmapAppState extends State<GiftmapApp> {
     await catalogStore.loadFirstPage();
     // 실제 상품 모드에서 상품이 하나도 없으면 빈 화면을 보여주지 않고
     // 재시도 화면으로 보낸다. 데모로 채우지 않는다.
-    if (catalogStore.catalog.isEmpty && SupabaseBootstrap.isRealProductMode) {
+    // 실제 상품 모드는 두 경로 모두를 뜻한다(Vercel API 또는 Supabase 직접).
+    final bool realProductMode =
+        ApiBootstrap.isRemoteMode || SupabaseBootstrap.isRealProductMode;
+    if (catalogStore.catalog.isEmpty && realProductMode) {
       throw StateError('실제 상품을 한 건도 불러오지 못했습니다.');
     }
     final LocalRecommendationEngine engine = LocalRecommendationEngine(ruleset);
