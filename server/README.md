@@ -44,6 +44,23 @@ Flutter 앱 → Vercel API → Supabase 상품 DB / OpenAI
 | `ALLOWED_ORIGINS` | 브라우저에서 부를 때의 CORS. 비우면 모두 허용 |
 | `RECOMMEND_RATE_LIMIT_PER_MINUTE` | 추천 호출 제한(기본 10) |
 
+## 앱 화면도 같은 주소에서 보기
+
+Flutter 웹 빌드를 `server/public/` 에 두면 Vercel 이 루트에서 정적 파일로 내보낸다.
+API 와 출처가 같아 CORS 를 신경 쓸 필요가 없다.
+
+```bash
+flutter build web --release   --dart-define=USE_MOCK=false   --dart-define=API_BASE_URL=https://giftmapapi.vercel.app
+rm -rf server/public && cp -r build/web server/public
+cd server && npx vercel deploy --prod
+```
+
+`public/` 은 빌드 산출물이라 저장소에 넣지 않는다(`.gitignore`).
+
+웹에서는 두 가지가 앱과 다르다.
+- 인앱 브라우저가 없어 상품 CTA 가 새 탭을 연다(`kIsWeb` 으로 갈린다).
+- 판매처 이미지 서버가 CORS 를 허용하지 않으면 그 이미지는 자리표시자로 보인다.
+
 ## 테스트
 
 계정도 키도 배포도 필요 없다. 가짜 요청·응답으로 핸들러를 직접 부른다.

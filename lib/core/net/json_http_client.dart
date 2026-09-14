@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+
+import 'package:http/http.dart' as http;
 
 /// 서버를 부르다 생긴 문제.
 ///
@@ -37,55 +38,60 @@ abstract interface class JsonHttpClient {
   void close();
 }
 
-/// `dart:io`의 HttpClient 로 통신하는 구현체.
-final class IoJsonHttpClient implements JsonHttpClient {
-  IoJsonHttpClient({
-    Duration timeout = const Duration(seconds: 15),
-    HttpClient? client,
-  }) : _timeout = timeout,
-       _client = client ?? (HttpClient()..connectionTimeout = timeout);
+/// 실제로 통신하는 구현체.
+///
+/// `package:http` 를 쓰는 이유는 안드로이드와 웹에서 같은 코드로 돌기 때문이다.
+/// `dart:io` 는 웹에서 아예 컴파일되지 않아, 웹으로도 띄우려면 쓸 수 없다.
+final class HttpJsonHttpClient implements JsonHttpClient {
+  HttpJsonHttpClient({
+    this.timeout = const Duration(seconds: 20),
+    http.Client? client,
+  }) : _client = client ?? http.Client();
 
-  final HttpClient _client;
-  final Duration _timeout;
+  final http.Client _client;
+
+  /// 이만큼 기다려도 답이 없으면 포기한다.
+  final Duration timeout;
 
   @override
-  Future<Object?> getJson(Uri url) => _send(url, method: 'GET');
-
-  @override
-  Future<Object?> postJson(Uri url, Map<String, Object?> body) =>
-      _send(url, method: 'POST', body: body);
-
-  Future<Object?> _send(
-    Uri url, {
-    required String method,
-    Map<String, Object?>? body,
-  }) async {
-    HttpClientResponse response;
-    String raw;
-    try {
-      final HttpClientRequest request = await _client
-          .openUrl(method, url)
-          .timeout(_timeout);
-      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-      if (body != null) {
-        request.headers.contentType = ContentType.json;
-        request.write(jsonEncode(body));
-      }
-      response = await request.close().timeout(_timeout);
-      raw = await response.transform(utf8.decoder).join().timeout(_timeout);
-    } on TimeoutException {
-      throw const ApiException('서버가 제때 답하지 않았습니다.');
-    } on SocketException catch (error) {
-      throw ApiException('서버에 연결하지 못했습니다: ${error.osError?.message ?? ''}');
-    } on HttpException catch (error) {
-      throw ApiException('서버 응답을 받지 못했습니다: ${error.message}');
-    }
-
-    return decodeResponse(status: response.statusCode, body: raw);
+  Future<Object?> getJson(Uri url) async {
+    final http.Response response = await _guard(
+      () => _client.get(
+        url,
+        headers: const <String, String>{'accept': 'application/json'},
+      ),
+    );
+    return decodeResponse(status: response.statusCode, body: response.body);
   }
 
   @override
-  void close() => _client.close(force: true);
+  Future<Object?> postJson(Uri url, Map<String, Object?> body) async {
+    final http.Response response = await _guard(
+      () => _client.post(
+        url,
+        headers: const <String, String>{
+          'accept': 'application/json',
+          'content-type': 'application/json',
+        },
+        body: jsonEncode(body),
+      ),
+    );
+    return decodeResponse(status: response.statusCode, body: response.body);
+  }
+
+  /// 통신 중에 나올 수 있는 예외를 [ApiException] 하나로 모은다.
+  Future<http.Response> _guard(Future<http.Response> Function() send) async {
+    try {
+      return await send().timeout(timeout);
+    } on TimeoutException {
+      throw const ApiException('서버가 제때 답하지 않았습니다.');
+    } on http.ClientException catch (error) {
+      throw ApiException('서버에 연결하지 못했습니다: ${error.message}');
+    }
+  }
+
+  @override
+  void close() => _client.close();
 }
 
 /// 상태 코드와 본문을 함께 보고 결과를 정한다.

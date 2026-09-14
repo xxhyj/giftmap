@@ -1,4 +1,8 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app/app_scope.dart';
 import '../../../core/theme/app_colors.dart';
@@ -296,6 +300,13 @@ class _DetailActionBar extends StatelessWidget {
     if (url == null || (!url.isScheme('https') && !url.isScheme('http'))) {
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('판매 페이지 주소를 읽을 수 없어요.')));
+      return;
+    }
+
+    if (kIsWeb) {
+      // 웹에는 인앱 브라우저(webview_flutter)가 없다. 새 탭으로 연다.
+      // 브라우저에서 보고 있으므로 뒤로 가기로 돌아오는 흐름도 그대로다.
+      unawaited(launchUrl(url, mode: LaunchMode.externalApplication));
       return;
     }
 

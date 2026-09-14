@@ -30,7 +30,7 @@ abstract final class ApiBootstrap {
       }
       return;
     }
-    _client = client ?? IoJsonHttpClient();
+    _client = client ?? HttpJsonHttpClient();
     debugPrint('[Giftmap] Vercel API 경로로 실행합니다.');
   }
 

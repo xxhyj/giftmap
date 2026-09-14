@@ -40,6 +40,9 @@ dependencies:
   webview_flutter: ^4.14.1
   # 사용자가 판매처 앱으로 넘어가기를 고를 때만 외부로 넘긴다.
   url_launcher: ^6.3.2
+  # Vercel API 호출. 안드로이드와 웹에서 같은 코드로 돌아야 해서 dart:io 대신 쓴다
+  # (dart:io 는 웹에서 컴파일되지 않는다). 이미 의존성 그래프에 있던 패키지다.
+  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:
