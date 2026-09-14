@@ -51,16 +51,14 @@ export default async function handler(req, res) {
   const supabase = createSupabase(env);
 
   try {
-    const [{ rows, total, hasMore }, labels] = await Promise.all([
-      listProducts(supabase, { offset, limit, category, query }),
-      loadCategoryLabels(supabase),
-    ]);
-
-    // 첫 페이지에만 함께 싣는다. 실패해도 상품은 그대로 내보낸다.
-    let searchSuggestions = [];
-    if (page === 1) {
-      searchSuggestions = await loadSearchSuggestions(supabase).catch(() => []);
-    }
+    // 셋을 한꺼번에 물어본다. 차례로 물으면 상류가 깨어나는 시간이 그만큼 쌓인다.
+    // 추천 검색어는 첫 페이지에만 싣고, 실패해도 상품은 그대로 내보낸다.
+    const [{ rows, total, hasMore }, labels, searchSuggestions] =
+      await Promise.all([
+        listProducts(supabase, { offset, limit, category, query }),
+        loadCategoryLabels(supabase),
+        page === 1 ? loadSearchSuggestions(supabase).catch(() => []) : [],
+      ]);
 
     sendJson(
       res,

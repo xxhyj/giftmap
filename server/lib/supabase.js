@@ -15,7 +15,14 @@ export class UpstreamError extends Error {
   }
 }
 
-export function createSupabase({ url, key, fetchImpl = fetch, timeoutMs = 10_000 }) {
+/**
+ * 상류(PostgREST)가 쉬다 깨어나는 데 걸리는 시간까지 기다린다.
+ *
+ * 무료 플랜에서는 한동안 요청이 없다가 들어온 첫 질의가 9초 넘게 걸린다
+ * (Supabase 로그의 origin_time 으로 확인했다). 그 뒤 질의는 수백 ms 다.
+ * 10초로 잡으면 그 경계에 걸려 깨어나는 중에 포기하게 된다.
+ */
+export function createSupabase({ url, key, fetchImpl = fetch, timeoutMs = 20_000 }) {
   /**
    * 읽기 한 번. 상류가 잠깐 흔들리면 한 번만 다시 묻는다.
    *
