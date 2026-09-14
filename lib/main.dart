@@ -28,6 +28,7 @@ Future<void> main() async {
     GiftmapApp(
       productDataSource: source,
       aiService: ApiBootstrap.aiRecommendationService(),
+      searchTrends: ApiBootstrap.searchTrendService(),
     ),
   );
 }

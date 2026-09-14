@@ -4,6 +4,8 @@ import '../../features/gift_finder/data/ai_recommendation_service.dart';
 import '../../features/gift_finder/data/api_recommendation_service.dart';
 import '../../features/products/data/api_product_data_source.dart';
 import '../../features/products/data/bundled_product_data_source.dart';
+import '../../features/search/data/api_search_trend_service.dart';
+import '../../features/search/data/search_trend_service.dart';
 import '../net/json_http_client.dart';
 import 'api_config.dart';
 
@@ -60,6 +62,13 @@ abstract final class ApiBootstrap {
       // 서버가 고른 상품이 아직 앱 손에 없을 때 한 건씩 확인하는 통로.
       products: ApiProductDataSource(_config, client),
     );
+  }
+
+  /// 검색어 집계. API 경로가 아니면 null 이고, 부르는 쪽이 예전 경로를 쓴다.
+  static SearchTrendService? searchTrendService() {
+    final JsonHttpClient? client = _client;
+    if (!_config.isRemoteMode || client == null) return null;
+    return ApiSearchTrendService(_config, client);
   }
 
   /// 테스트에서 상태를 초기화할 때 쓴다.

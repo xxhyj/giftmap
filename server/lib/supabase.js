@@ -58,7 +58,35 @@ export function createSupabase({ url, key, fetchImpl = fetch, timeoutMs = 10_000
     return { rows: body, contentRange: res.headers?.get?.('content-range') ?? null };
   }
 
-  return { request };
+  /** 행 하나를 넣는다. 돌려받을 것이 없어 응답 본문은 요청하지 않는다. */
+  async function insert(path, row) {
+    const target = new URL(`${url}/rest/v1/${path}`);
+    let res;
+    try {
+      res = await fetchImpl(target, {
+        method: 'POST',
+        headers: {
+          apikey: key,
+          authorization: `Bearer ${key}`,
+          'content-type': 'application/json',
+          prefer: 'return=minimal',
+        },
+        body: JSON.stringify(row),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (error) {
+      throw new UpstreamError(`저장소에 연결하지 못했습니다: ${error?.name ?? error}`, {
+        status: 504,
+        code: 'upstream_timeout',
+      });
+    }
+    if (!res.ok) {
+      throw new UpstreamError(`저장소가 ${res.status} 를 돌려줬습니다.`);
+    }
+    return true;
+  }
+
+  return { request, insert };
 }
 
 /** `0-59/1886` 같은 헤더에서 전체 개수를 읽는다. 모르면 null. */

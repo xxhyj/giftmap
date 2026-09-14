@@ -59,6 +59,27 @@ export function parseQuery(query = {}) {
   return cleaned.length > 0 ? cleaned : null;
 }
 
+/**
+ * 남겨도 되는 검색어인지 보고 다듬는다.
+ *
+ * 앱과 같은 기준이다. 20자를 넘거나 단어 셋을 넘으면 문장일 가능성이 높고,
+ * 문장에는 개인적인 내용이 담기기 쉬워 아예 남기지 않는다(null).
+ */
+export function normalizeKeyword(raw) {
+  const value = firstString(raw);
+  if (!value) return null;
+  const trimmed = value.trim().replace(/\s+/g, ' ');
+  if (trimmed.length === 0 || trimmed.length > 20) return null;
+  if (trimmed.split(' ').length > 3) return null;
+  return trimmed.toLowerCase();
+}
+
+/** 검색 기록의 종류. 모르는 값은 검색으로 본다. */
+export function parseKind(raw) {
+  const value = firstString(raw);
+  return value === 'click' ? 'click' : 'search';
+}
+
 /** 상품 id. 수집기가 붙이는 `<source>-<id>` 형식만 받는다. */
 export function parseProductId(value) {
   const raw = firstString(value);
