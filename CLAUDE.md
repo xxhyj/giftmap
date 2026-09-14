@@ -14,7 +14,7 @@ GiftMap(선물지도)은 기념일·생일처럼 선물을 골라야 하는 순�
 ## 2. 현재 개발 단계의 범위
 
 이 단계의 목표는 **공개 상품 페이지에서 수집한 실제 상품으로 핵심 사용자 흐름을 돌리는 것**이다.
-추천은 서버(Edge Function)의 OpenAI가 실제 상품 중에서 고르고, 실패하면 로컬 결정론 엔진이 맡는다.
+추천은 서버(Vercel API)의 OpenAI가 실제 상품 중에서 고르고, 실패하면 로컬 결정론 엔진이 맡는다.
 
 포함:
 - Flutter Stable / Dart null safety / Material 3 / Android API 24+

@@ -40,16 +40,15 @@ node src/index.js --source all --limit 700 --rounds 8    # 넓게 수집
 
 ### 추천 (서버 AI → 로컬 엔진)
 
-Supabase Edge Function `recommend`가 조건에 맞는 실제 상품 후보를 추린 뒤
+Vercel API `POST /api/recommend`가 조건에 맞는 실제 상품 후보를 추린 뒤
 OpenAI에게 **그 후보 중에서만** 3~5개를 고르게 한다. 모델은 상품·가격·URL을
 만들 수 없고 고를 수만 있으며, 앱은 받은 상품 id를 카탈로그에서 다시 확인한다.
+카탈로그에 없으면 서버에 그 상품 하나를 다시 물어보고, 서버도 모르면 버린다.
 호출이 실패하거나 고른 상품이 3개 미만이면 로컬 추천 엔진이 그대로 맡는다.
-`OPENAI_API_KEY`는 함수 시크릿으로만 존재하고 앱에는 들어가지 않는다.
+`OPENAI_API_KEY`는 Vercel 환경변수로만 존재하고 앱에는 들어가지 않는다.
 
-```bash
-cp supabase/.env.example supabase/.env.local   # 값 채우기(커밋되지 않음)
-npx supabase functions deploy recommend --project-ref <프로젝트 ref>
-```
+서버 코드는 [server/](server/)에 있고, GitHub `main`에 푸시하면 Vercel이
+`server/`를 자동으로 배포한다. 자세한 내용은 [server/README.md](server/README.md).
 
 ## 검증
 

@@ -206,7 +206,7 @@ ApiBootstrap.productDataSource()
 
 ```
 GiftFinderController.submit()
- └ AiRecommendationService (Supabase Functions: recommend)
+ └ AiRecommendationService (Vercel API: POST /api/recommend)
      ├ 후보: is_demo = false, in_stock ≠ false, 조건에 맞는 실제 상품
      ├ OpenAI: 후보 중에서만 3~5개 선택 (상품·가격·URL 생성 불가)
      └ 응답: 실제 상품 id + 이유
@@ -214,8 +214,8 @@ GiftFinderController.submit()
     3개 미만 / fallback:true / 호출 실패 → ProductRecommendationEngine(로컬)
 ```
 
-- `OPENAI_API_KEY`는 Edge Function 시크릿이며 앱에는 없다.
-- 함수 코드는 `supabase/functions/recommend/index.ts`.
+- `OPENAI_API_KEY`는 Vercel 환경변수이며 앱에는 없다.
+- 서버 코드는 `server/api/recommend.js`.
 
 - Supabase `products`에는 두 종류가 섞여 있다.
   번들에서 옮긴 데모 상품(`is_demo = true`, `source = null`)과
