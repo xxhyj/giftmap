@@ -106,7 +106,7 @@ class _StoreBrowserScreenState extends State<StoreBrowserScreen> {
   /// - https: 그대로 앱 안에서 연다.
   /// - http: Android 9부터 평문 통신이 막혀 있어 그대로 두면 페이지가 죽는다
   ///   (`ERR_CLEARTEXT_NOT_PERMITTED`). 판매처가 모바일 페이지로 보낼 때 http로
-  ///   내려보내는 경우가 있어(예: 알라딘), 같은 주소를 https로 올려 다시 연다.
+  ///   내려보내는 경우가 있어, 같은 주소를 https로 올려 다시 연다.
   /// - 그 외(`intent://`, `market://`, 판매처 앱 스킴): 앱 안에서는 열 수 없다.
   ///   사용자가 페이지에서 "앱으로 보기"를 눌렀을 때 일어나는 일이므로,
   ///   그 뜻을 존중해 판매처 앱(또는 스토어)으로 넘긴다.

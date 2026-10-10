@@ -219,10 +219,12 @@ GiftFinderController.submit()
 
 - Supabase `products`에는 두 종류가 섞여 있다.
   번들에서 옮긴 데모 상품(`is_demo = true`, `source = null`)과
-  `crawler/`가 공개 페이지에서 수집한 실제 상품(`is_demo = false`, `source = '10x10'` 등)이다.
+  카카오톡 선물하기에서 수집한 실제 상품(`is_demo = false`, `source = 'kakao_gift'`)이다.
   수집 상품만 `image_url`·`product_url`을 갖고 상세에서 원본 판매 페이지를 열 수 있다.
-- 수집은 앱 밖(Node.js + Playwright)에서 이뤄지고 서버 키를 쓴다. 앱은 관여하지 않는다.
-  자세한 내용은 `crawler/README.md`.
+- 수집은 앱 밖에서 이뤄지고 서버 키를 쓴다. 앱은 관여하지 않는다. 공개 페이지를
+  Playwright로 긁는 방식이 아니라, Claude Code 세션에서 PlayMCP
+  `KakaotalkGift-SearchGift`로 모은 결과를 `crawler/src/kakao/build.js`가 Supabase에
+  올린다. 자세한 내용은 `crawler/README.md`.
 - `product_offers`에는 판매처별 URL·가격이 남는다. 중복 통합으로 `products`에서
   빠진 판매처 정보를 잃지 않기 위한 표다.
 - 홈 큐레이션은 `ProductCatalog.interleave`가 `출처+분류` 묶음을 번갈아 뽑아

@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 /**
- * Giftmap 상품 수집기 (MCP 없이 단독 실행된다).
+ * Giftmap 상품 수집기 (Playwright 공급원용, MCP 없이 단독 실행된다).
  *
- *   node src/index.js                                        # 모든 공급원
- *   node src/index.js --source 10x10 --limit 300             # 한 공급원만
- *   node src/index.js --source all --limit 500 --rounds 8    # 전부, 넓게
- *   node src/index.js --source daiso,29cm --limit 400        # 여러 공급원만
+ * 텐바이텐·무신사·알라딘·다이소 어댑터는 카카오톡 선물하기 PlayMCP 수집
+ * (`src/kakao/build.js`)으로 교체되어 제거했다. `adapters/index.js`의
+ * 레지스트리가 비어 있어 지금은 이 CLI를 돌려도 수집되는 것이 없다.
+ * 새 Playwright 공급원을 추가할 때만 이 경로를 다시 쓴다.
+ *
+ *   node src/index.js --source <어댑터id> --limit 300        # 한 공급원만
+ *   node src/index.js --source all --limit 500 --rounds 8    # 등록된 전부
  *   node src/index.js --limit 5 --dry-run                    # 수집만 하고 파일로 저장
  *   node src/index.js --headed                               # 브라우저 창을 띄워 확인
  *

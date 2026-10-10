@@ -24,18 +24,18 @@ GiftMap(선물지도)은 기념일·생일처럼 선물을 골라야 하는 순�
 - 로컬 키워드 기반 자연어 파서
 
 상품 수집기 `crawler/` (앱 밖, 선택):
-- Node.js + Playwright로 공급원의 **공개 상품 페이지**에서 상품명·가격·이미지 URL·상품 URL을
-  읽어 Supabase `products`에 upsert한다. Flutter 앱과 분리된 프로그램이며 단독 실행된다.
-- JSON-LD의 `schema.org/Product`/`Offer`를 우선 쓰고, 없으면 공개 메타데이터를,
-  그래도 비면 어댑터의 `enrich`가 화면의 공개 표시값을 읽는다. 값을 지어내지 않는다.
-- `robots.txt`가 허용한 경로만 방문한다. 로그인·CAPTCHA·접근 제한은 **우회하지 않는다**.
-  `robots.txt`를 받을 수 없으면 규칙을 모르는 것이므로 수집하지 않는다.
-  (네이버쇼핑은 `Disallow: /`, 쿠팡은 robots.txt 자체가 403이라 둘 다 수집 대상이 아니다)
-- 분류 페이지만 쓰면 한 분야에 쏠리므로 선물 카테고리별 검색어(`GIFT_KEYWORDS`)로 넓게 훑는다.
-- 중복 통합으로 빠진 판매처의 URL·가격은 `product_offers`에 보존한다.
+- 지금 쓰는 공급원은 **카카오톡 선물하기**(PlayMCP) 하나다. 공개 페이지를 Playwright로
+  긁지 않고, Claude Code 세션에서 PlayMCP `KakaotalkGift-SearchGift`로 상품을 검색해
+  모은 결과(`crawler/out/kakao_raw.json`)를 `node crawler/src/kakao/build.js`가 정규화해
+  Supabase `products`에 `source: 'kakao_gift'`로 upsert한다.
+- PlayMCP는 개인 claude.ai 계정 연결이라 서버나 무인 크론이 대신 호출할 수 없다.
+  그래서 이 수집은 사람이 Claude Code와 함께 다시 실행해야 갱신된다(주기적 자동 수집 아님).
+- 텐바이텐·무신사·알라딘·다이소를 Playwright로 긁던 어댑터는 모두 제거했다.
+  `crawler/src/adapters/` 레지스트리는 비어 있고, 새 공급원을 **공개 페이지 스크래핑**으로
+  추가할 때만 다시 쓴다. 그 경우의 규칙(JSON-LD 우선, robots.txt 준수, 로그인·CAPTCHA
+  우회 금지 등)은 `crawler/README.md`의 "Playwright 어댑터 기반 수집" 절에 남겨 뒀다.
 - 수집 상품은 `is_demo = false`로 데모 상품과 구분하고, 상세에서 원본 판매 페이지를 연다.
 - Supabase 키(`service_role`)는 `crawler/.env` 환경변수로만 받는다. 앱에는 넣지 않는다.
-- 공급원 추가는 `crawler/src/adapters/`에 어댑터를 더하는 방식이다. 자세한 내용은 `crawler/README.md`.
 
 Vercel API `server/` (앱 밖, 선택):
 - Flutter 앱 → Vercel HTTPS API → Supabase 상품 DB / OpenAI 구조다.

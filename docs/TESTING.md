@@ -197,13 +197,16 @@ flutter test
 
 ```bash
 cd crawler
-npm test                                       # 추출·정규화·robots 규칙 (네트워크 없음)
-node src/index.js --source 10x10 --limit 5 --dry-run   # 실제 공급원에서 수집만 확인
+npm test                  # 추출·정규화·robots 규칙 (네트워크 없음)
+node src/kakao/build.js   # kakao_raw.json(PlayMCP 수집 결과) → Supabase upsert
 ```
 
 - `npm test`는 네트워크를 쓰지 않는다. JSON-LD 추출, 가격이 없을 때 `null` 유지,
   `is_demo = false` 표시, 같은 입력이 같은 id를 만드는지, robots 허용 판단을 확인한다.
-- `--dry-run`은 Supabase에 쓰지 않고 `crawler/out/<source>.json`에만 남긴다.
+  (이 테스트들은 카카오톡 선물하기 수집과 무관하게 공통 `normalize.js` 로직을 검증한다.)
+- `src/kakao/build.js`는 `crawler/out/kakao_raw.json`을 Supabase에 올린다.
+  그 전에 Claude Code 세션에서 PlayMCP `KakaotalkGift-SearchGift`로 상품을 모아
+  그 파일을 채워야 한다(`crawler/README.md` 참고).
 - 앱 쪽 수집 상품 동작은 `test/features/products/collected_product_test.dart`에서
   네트워크 없이 검증한다(CTA 활성 조건, 이미지 fallback).
 

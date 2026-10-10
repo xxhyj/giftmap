@@ -42,7 +42,7 @@ test('허용한 판매처 이미지는 그대로 옮긴다', async () => {
   const res = makeRes();
 
   await image(
-    makeReq({ query: { u: 'https://thumbnail.10x10.co.kr/webimage/image/a.jpg' } }),
+    makeReq({ query: { u: 'https://st.kakaocdn.net/product/gift/product/a.jpg' } }),
     res,
   );
 
@@ -53,13 +53,8 @@ test('허용한 판매처 이미지는 그대로 옮긴다', async () => {
   assert.equal(calls.length, 1);
 });
 
-test('네 판매처 호스트를 모두 허용한다', async () => {
-  for (const host of [
-    'thumbnail.10x10.co.kr',
-    'webimage.10x10.co.kr',
-    'image.aladin.co.kr',
-    'image.msscdn.net',
-  ]) {
+test('카카오 이미지 호스트를 허용한다', async () => {
+  for (const host of ['st.kakaocdn.net']) {
     stubImage();
     const res = makeRes();
     await image(makeReq({ query: { u: `https://${host}/a.jpg` } }), res);
@@ -78,8 +73,8 @@ test('허용 목록 밖의 주소는 거절한다', async () => {
   for (const url of [
     'https://example.com/a.jpg',
     'https://evil.test/big.zip',
-    'https://thumbnail.10x10.co.kr.evil.test/a.jpg',
-    'http://thumbnail.10x10.co.kr/a.jpg',
+    'https://st.kakaocdn.net.evil.test/a.jpg',
+    'http://st.kakaocdn.net/a.jpg',
   ]) {
     const res = makeRes();
     await image(makeReq({ query: { u: url } }), res);
@@ -101,7 +96,7 @@ test('이미지가 아니면 거절한다', async () => {
   stubImage({ type: 'text/html' });
   const res = makeRes();
 
-  await image(makeReq({ query: { u: 'https://image.aladin.co.kr/a.html' } }), res);
+  await image(makeReq({ query: { u: 'https://st.kakaocdn.net/a.html' } }), res);
 
   assert.equal(res.statusCode, 415);
   assert.equal(res.json.error.code, 'not_an_image');
@@ -111,7 +106,7 @@ test('너무 크면 거절한다', async () => {
   stubImage({ bytes: 9 * 1024 * 1024 });
   const res = makeRes();
 
-  await image(makeReq({ query: { u: 'https://image.aladin.co.kr/big.jpg' } }), res);
+  await image(makeReq({ query: { u: 'https://st.kakaocdn.net/big.jpg' } }), res);
 
   assert.equal(res.statusCode, 413);
 });
@@ -120,7 +115,7 @@ test('이미지 서버가 실패하면 502', async () => {
   stubImage({ ok: false, status: 404 });
   const res = makeRes();
 
-  await image(makeReq({ query: { u: 'https://image.aladin.co.kr/none.jpg' } }), res);
+  await image(makeReq({ query: { u: 'https://st.kakaocdn.net/none.jpg' } }), res);
 
   assert.equal(res.statusCode, 502);
 });

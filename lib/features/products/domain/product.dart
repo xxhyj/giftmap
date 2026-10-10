@@ -116,7 +116,7 @@ class Product {
   /// 오래된 상품은 추천에서 뒤로 밀린다.
   final DateTime? lastVerifiedAt;
 
-  /// 어느 공급원에서 수집했는지(예: `10x10`). 데모 상품은 null이다.
+  /// 어느 공급원에서 수집했는지(예: `kakao_gift`). 데모 상품은 null이다.
   final String? source;
 
   final DateTime createdAt;
@@ -137,9 +137,7 @@ class Product {
 
   /// 사용자에게 보여줄 공급원 이름.
   String? get sourceLabel => switch (source) {
-    '10x10' => '텐바이텐',
-    'musinsa' => '무신사',
-    'aladin' => '알라딘',
+    'kakao_gift' => '카카오톡 선물하기',
     final String value when value.isNotEmpty => value,
     _ => null,
   };

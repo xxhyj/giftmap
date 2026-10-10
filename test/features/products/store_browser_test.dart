@@ -8,8 +8,7 @@ import '../../helpers/fake_webview.dart';
 import '../../helpers/scope_harness.dart';
 
 Product _product({
-  String? productUrl =
-      'https://www.10x10.co.kr/shopping/category_prd.asp?itemid=1',
+  String? productUrl = 'https://gift.kakao.com/product/1',
   bool isDemo = false,
   String availability = 'in_stock',
 }) => Product.fromJson(<String, Object?>{
@@ -23,7 +22,7 @@ Product _product({
   'imageUrl': 'https://example.test/a.jpg',
   'isDemo': isDemo,
   'availability': availability,
-  'source': '10x10',
+  'source': 'kakao_gift',
 });
 
 void main() {
@@ -60,7 +59,7 @@ void main() {
     // 앱 안이 답답할 때를 위한 탈출구.
     expect(find.byIcon(Icons.open_in_new), findsOneWidget);
     // 어느 판매처인지 알려 준다.
-    expect(find.text('텐바이텐'), findsOneWidget);
+    expect(find.text('카카오톡 선물하기'), findsOneWidget);
   });
 
   testWidgets('닫기를 누르면 상품 상세로 돌아온다', (WidgetTester tester) async {
@@ -89,16 +88,16 @@ void main() {
   group('주소를 어떻게 다룰지', () {
     test('https 는 앱 안에서 그대로 연다', () {
       expect(
-        storeUrlAction('https://www.10x10.co.kr/shopping/category_prd.asp'),
+        storeUrlAction('https://gift.kakao.com/product/1'),
         StoreUrlAction.open,
       );
     });
 
     test('평문(http) 은 https 로 올린다', () {
       // Android 9+ 는 평문 통신을 막는다(ERR_CLEARTEXT_NOT_PERMITTED).
-      // 알라딘이 모바일 페이지로 보낼 때 http 로 내려보내 페이지가 죽었다.
+      // 판매처가 모바일 페이지로 http 를 내려보내면 페이지가 죽는 걸 막는다.
       expect(
-        storeUrlAction('http://www.aladin.co.kr/m/mproduct.aspx?itemid=1'),
+        storeUrlAction('http://gift.kakao.com/product/1'),
         StoreUrlAction.upgradeToHttps,
       );
     });

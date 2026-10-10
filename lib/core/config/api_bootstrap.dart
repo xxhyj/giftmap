@@ -65,8 +65,8 @@ abstract final class ApiBootstrap {
   /// 판매처 이미지를 어떤 주소로 받을지.
   ///
   /// 안드로이드에서는 판매처 주소를 그대로 쓴다. 웹 브라우저에서만 서버를 거친다.
-  /// 판매처 이미지 서버가 다른 출처의 요청을 막아(텐바이텐이 그렇다) 브라우저에서는
-  /// 이미지가 통째로 비어 보이기 때문이다.
+  /// 판매처 이미지 서버가 다른 출처의 요청을 막으면 브라우저에서는 이미지가
+  /// 통째로 비어 보이기 때문이다.
   static String imageUrl(String url) {
     if (!kIsWeb || !isRemoteMode) return url;
     return _config.resolve('/api/image', <String, String>{'u': url}).toString();

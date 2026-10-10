@@ -41,7 +41,7 @@ Product _realProduct(String id) => Product.fromJson(<String, Object?>{
   'imageUrl': 'https://example.test/i/$id.jpg',
   'isDemo': false,
   'inStock': true,
-  'source': '10x10',
+  'source': 'kakao_gift',
 });
 
 /// 스플래시에는 계속 도는 로딩 표시가 있어 pumpAndSettle 이 끝나지 않는다.
@@ -87,7 +87,7 @@ void main() {
     expect(product.isDemo, isFalse);
     expect(product.canOpenStore, isTrue);
     expect(product.isSoldOut, isFalse);
-    expect(product.sourceLabel, '텐바이텐');
+    expect(product.sourceLabel, '카카오톡 선물하기');
   });
 
   test('품절은 알려 줄 때만 품절로 본다', () {

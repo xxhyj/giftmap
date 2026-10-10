@@ -1,15 +1,45 @@
 # Giftmap 상품 수집기
 
-공급원의 **공개 상품 페이지**에서 상품명·가격·이미지 URL·상품 URL을 읽어
-Supabase `products` 표에 upsert 한다. Flutter 앱과는 분리된 Node.js 프로그램이며
-Claude Code나 MCP 없이 단독으로 실행된다.
+Supabase `products` 표에 실제 상품을 upsert 한다. Flutter 앱과는 분리된 Node.js
+프로그램이다.
 
-## 설치
+지금 쓰는 공급원은 **카카오톡 선물하기**(PlayMCP)뿐이다. 이 공급원은 공개
+웹페이지를 Playwright로 긁지 않는다 — Claude Code가 PlayMCP의
+`KakaotalkGift-SearchGift` 도구로 상품을 검색해 모은 결과를
+`crawler/out/kakao_raw.json`에 저장하고, `node src/kakao/build.js`가 그 결과를
+정규화해 Supabase에 올린다. 그래서 상품 검색 자체는 Claude Code 세션 안에서만
+할 수 있고(개인 claude.ai 계정 연결이라 서버가 대신 부를 수 없다), 업로드
+스크립트만 사람이 직접 실행한다.
+
+텐바이텐·무신사·알라딘·다이소를 **공개 상품 페이지에서 Playwright로 긁는
+방식은 더 쓰지 않는다**(실사용 상품으로 보기 어려워 걷어냈다). 그 어댑터들은
+삭제했고, `src/adapters/index.js`의 레지스트리는 비어 있다. 아래 "Playwright
+어댑터 기반 수집(지금은 안 씀)" 절은 앞으로 새 공급원을 **그런 방식으로** 추가할
+때를 위해 남겨 둔 것이다.
+
+## 카카오톡 선물하기 수집(지금 쓰는 방식)
+
+```bash
+cd crawler
+npm install                 # @supabase/supabase-js 만 필요하다 (Playwright 불필요)
+node src/kakao/build.js     # kakao_raw.json → 정규화 → Supabase upsert
+```
+
+1. Claude Code 세션에서 PlayMCP `KakaotalkGift-SearchGift`로 검색어별 상품을 모아
+   `crawler/out/kakao_raw.json`에 `{ collectedAt, groups: [{ categoryHint, query, items: [...] }] }`
+   형태로 저장한다. `items`는 PlayMCP가 돌려주는 `itemId/itemName/itemImageUrl/price/discountRate/link/reviewCount`를 그대로 담는다.
+2. `node src/kakao/build.js`를 실행하면 `src/normalize.js#toProductRow`로
+   분류·태그·가격 구간을 정하고, `source: 'kakao_gift'`로 Supabase에 upsert한다.
+3. 재검색해서 같은 `itemId`가 다시 나오면 같은 행을 덮어쓴다(중복되지 않는다).
+
+가격을 확인하지 못한 상품은 `price`가 `null`이다. 재고 상태는 PlayMCP 검색
+결과에 없어 항상 `availability: 'unknown'`이고, 품절로 단정하지 않는다.
+
+## 설치와 Supabase 키
 
 ```bash
 cd crawler
 npm install
-npm run install:browser   # Playwright Chromium 내려받기
 ```
 
 Supabase에 올리려면 키가 필요하다. `.env.example`을 `.env`로 복사해 값을 채운다.
@@ -23,26 +53,29 @@ SUPABASE_SERVICE_ROLE_KEY=sb_secret_xxxx
 앱은 publishable(anon) 키로 읽기만 한다(`docs/SUPABASE_SETUP.md`).
 `.env`는 커밋하지 않는다(`crawler/.gitignore`).
 
-## 실행
+결과는 업로드 성공 여부와 관계없이 항상 `crawler/out/`에 남는다.
+Supabase 키가 없거나 업로드가 실패해도 DB의 기존 상품은 그대로다.
+실제 상품 모드의 앱은 원격 읽기에 실패하면 데모로 덮지 않고 재시도 화면을 보여 준다.
+
+## Playwright 어댑터 기반 수집(지금은 안 씀)
+
+예전에는 공급원의 **공개 상품 페이지**에서 Playwright로 상품명·가격·이미지
+URL·상품 URL을 직접 긁었다. 지금은 쓰지 않지만, 공개 페이지 스크래핑으로
+새 공급원을 추가하고 싶을 때를 위해 아래 규칙과 공급원 추가 절차를 남겨 둔다.
 
 ```bash
-npm run collect                                     # 모든 공급원에서 수집 + 업로드
+npm run install:browser   # Playwright Chromium 내려받기
+npm run collect                                     # 등록된 공급원에서 수집 + 업로드
 node src/index.js --source all --limit 700 --rounds 8   # 넓게 수집
-node src/index.js --source musinsa --limit 200      # 한 공급원만
 node src/index.js --limit 5 --dry-run               # 수집만 하고 out/에 저장
 node src/index.js --headed                          # 브라우저 창을 띄워 확인
 npm test                                            # 추출·정규화·중복·robots 테스트
 ```
 
-**공급원 하나가 끝날 때마다 바로 Supabase에 올린다.** 마지막에 한 번만 올리면
-중간에 멈췄을 때 그때까지 수집한 것이 모두 사라지기 때문이다. 한 공급원 저장이
-실패해도 남은 공급원 수집은 계속된다.
+지금은 `src/adapters/index.js`의 `adapters` 배열이 비어 있어 위 명령을 돌려도
+수집되는 것이 없다. 공급원을 추가하면 다시 동작한다.
 
-결과는 업로드 성공 여부와 관계없이 항상 `crawler/out/<대상>.json`에 남는다.
-Supabase 키가 없거나 업로드가 실패해도 DB의 기존 상품은 그대로다.
-실제 상품 모드의 앱은 원격 읽기에 실패하면 데모로 덮지 않고 재시도 화면을 보여 준다.
-
-## 수집 규칙
+### 수집 규칙
 
 - 시작 전에 공급원 `robots.txt`를 읽고, 우리 User-Agent에게 허용된 경로만 방문한다.
   `robots.txt`를 받을 수 없으면(차단·오류) 규칙을 모르는 것이므로 수집하지 않는다.
@@ -66,19 +99,17 @@ Supabase 키가 없거나 업로드가 실패해도 DB의 기존 상품은 그�
 
 ## 현재 공급원
 
-| id | 이름 | 근거 |
+| id | 이름 | 방식 |
 | --- | --- | --- |
-| `10x10` | 텐바이텐 | `robots.txt`가 ClaudeBot 계열에 `/shopping/`, `/category/`, `/search/` 허용. 상세에 `Product`/`Offer` JSON-LD 제공. 목록의 breadcrumb로 하위 분류까지 넓힌다 |
-| `musinsa` | 무신사 | `robots.txt`의 `ClaudeBot` 포함 그룹에 상품 경로 허용. `Product`/`Offer` JSON-LD와 재고 제공 |
-| `aladin` | 알라딘 | `robots.txt`의 `ClaudeBot` 포함 그룹에 `/shop/` 허용. `Product`/`Offer` JSON-LD 제공 |
-| `daiso` | 다이소몰 | `robots.txt`가 `ClaudeBot`에 `/pd/` 허용. sitemap으로 상품 약 2만 건을 공개하고 JSON-LD에 이름·브랜드·가격·재고·이미지·분류가 모두 있다. 생활·주방·청소·문구·뷰티를 넓게 덮는다 |
+| `kakao_gift` | 카카오톡 선물하기 | PlayMCP `KakaotalkGift-SearchGift` (위 "카카오톡 선물하기 수집" 절) |
 
+### Playwright로 긁다가 뺀 곳
 
-### 이번 구성에서 뺀 곳
-
-| 사이트 | 사유 |
-| --- | --- |
-| 29CM | 수집은 확인됐으나(검색에서 상품 링크 노출, `Product` JSON-LD 제공) 이번 서비스 구성에서 제외하기로 했다. 다시 넣으려면 어댑터를 되살려 `adapters` 배열에 추가하면 된다 |
+텐바이텐(`10x10`)·무신사(`musinsa`)·알라딘(`aladin`)·다이소몰(`daiso`) 어댑터는
+실사용 상품으로 쓰기 어려워 모두 제거했다(이 넷의 `robots.txt` 근거는
+`git log`의 이전 버전에 남아 있다). 29CM도 도입 전에 검토만 하고 넣지 않았다.
+Playwright 방식으로 다시 수집하고 싶다면 "공급원 추가하기" 절차로 어댑터를
+새로 만들어 `adapters` 배열에 추가한다.
 
 ### 검토했으나 제외한 곳
 
@@ -132,5 +163,6 @@ Supabase 키가 없거나 업로드가 실패해도 DB의 기존 상품은 그�
 | `src/extract.js` | JSON-LD / 메타데이터 추출, 접근 제한 감지 |
 | `src/normalize.js` | 수집 결과 → `products` 행 (분류·태그·가격 구간) |
 | `src/supabase.js` | 환경변수 읽기와 upsert |
-| `src/adapters/` | 공급원별 목록·상세 규칙 |
+| `src/adapters/` | 공급원별 목록·상세 규칙 (지금은 비어 있다) |
 | `src/adapters/helpers.js` | 목록 렌더·링크 수집·페이지·분류 힌트 공통 도구 |
+| `src/kakao/build.js` | `kakao_raw.json`(PlayMCP 수집 결과) → 정규화 → Supabase upsert |
